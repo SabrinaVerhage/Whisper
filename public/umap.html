@@ -521,6 +521,7 @@ let pinnedWhisper = null;
 let localMouseX = -1, localMouseY = -1;
 let wsViewers = [];
 let pad = 52;
+let whisperMap = new Map(); // id → last-known whisper, used for delta polling
 
 // Hover fingerprint (overlay canvas, same lifecycle as mobile)
 let _umapFpRenderer = null;
@@ -937,9 +938,11 @@ function connectWS() {
 }
 
 /* ── Load + layout ───────────────────────────────────────────────────────── */
-async function load() {
-  document.getElementById('centerMsg').style.display = 'flex';
-  document.getElementById('centerMsg').querySelector('span:last-child').textContent = 'loading field…';
+async function load({ silent = false } = {}) {
+  if (!silent) {
+    document.getElementById('centerMsg').style.display = 'flex';
+    document.getElementById('centerMsg').querySelector('span:last-child').textContent = 'loading field…';
+  }
   points = [];
 
   try { const c = await fetch('/config').then(r => r.json()); _fpCfg = buildFingerprintConfig(c); } catch {}
@@ -999,7 +1002,51 @@ async function load() {
     ` · ${algo}${hasSemantic ? ' · semantic' : ''}`;
 
   document.getElementById('centerMsg').style.display = 'none';
+  whisperMap = new Map(valid.map(w => [w.id, w]));
   updateHeaderViewers();
+  draw();
+}
+
+/* ── Background polling for LLM updates ─────────────────────────────────── */
+async function pollWhispers() {
+  if (!whisperMap.size) return; // still on initial load
+  let fresh;
+  try {
+    const res = await fetch('/whispers');
+    const d   = await res.json();
+    fresh = d.whispers || [];
+  } catch { return; }
+
+  const freshMap = new Map(fresh.map(w => [w.id, w]));
+
+  // New entries arrived → full re-layout (silent, no loading spinner)
+  if (fresh.some(w => !whisperMap.has(w.id))) {
+    await load({ silent: true });
+    return;
+  }
+
+  // Existing entries only — patch in-place when LLM data arrives
+  let anyUpdated = false;
+  for (const [id, freshW] of freshMap) {
+    const oldW = whisperMap.get(id);
+    if (!oldW) continue;
+    const llmArrived   = !oldW.llm && !!freshW.llm;
+    const praatArrived = oldW.sensuality?.partial && !freshW.sensuality?.partial;
+    if (!llmArrived && !praatArrived) continue;
+
+    const pt = points.find(p => p.w.id === id);
+    if (pt) Object.assign(pt.w, freshW);
+    whisperMap.set(id, freshW);
+    anyUpdated = true;
+  }
+
+  if (!anyUpdated) return;
+
+  // Re-render detail panel if the pinned entry was among the updated ones
+  if (pinnedId) {
+    const pt = points.find(p => p.w.id === pinnedId);
+    if (pt) renderDetailPanel(pt.w);
+  }
   draw();
 }
 
@@ -1008,6 +1055,7 @@ const tooltip = document.getElementById('tooltip');
 updateHeaderViewers();
 connectWS();
 load();
+setInterval(pollWhispers, 8000);
 </script>
 </body>
 </html>

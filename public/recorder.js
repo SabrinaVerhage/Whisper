@@ -316,9 +316,12 @@ function showScreen(id) {
 
   // Persistent circle: grow in when entering record screen
   if (id === 'record') {
+    // Collapse to 0 before building aura so getBoundingClientRect() returns 0
+    // → createAuraField falls back to 300px for blob sizing (fixes white circle on 2nd pass)
+    setCircle({ x: 50, y: 50, size: 0, opacity: 0, bg: 'var(--paper)', instant: true });
     buildCircleAura();
-    // Reset bg to paper in case it was black (dot state from previous session)
-    setCircle({ x: 50, y: 50, size: 40, opacity: 0, bg: 'var(--paper)', instant: true });
+    // Set 40px starting point for the grow animation (no paint between these instant calls)
+    setCircle({ size: 40, instant: true });
     // Double rAF ensures the layout settles before the transition fires
     requestAnimationFrame(() => requestAnimationFrame(() => {
       setCircle({
