@@ -46,6 +46,7 @@ function sendFile(response, filePath, contentType) {
     response.writeHead(200, {
       "Content-Type": contentType,
       "Content-Length": content.length,
+      "Cache-Control": "no-store",
     });
     response.end(content);
   });
