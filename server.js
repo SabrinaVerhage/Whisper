@@ -14,7 +14,12 @@ const WHISPERS_DIR = path.join(DATA_DIR, "whispers");
 const RECORDINGS_DIR = path.join(__dirname, "recordings");
 const PUBLIC_DIR = path.join(__dirname, "public");
 const JSONL_PATH = path.join(DATA_DIR, "whispers.jsonl");
-const CONFIG_PATH = path.join(DATA_DIR, "config.json");
+// CONFIG_PATH defaults to data/config.json inside the repo, but can be pointed
+// OUTSIDE the repo via WHISPER_CONFIG_PATH so git operations can never touch it.
+// Recommended on a VPS: WHISPER_CONFIG_PATH=/etc/whisper/config.json
+const CONFIG_PATH = process.env.WHISPER_CONFIG_PATH
+  ? path.resolve(process.env.WHISPER_CONFIG_PATH)
+  : path.join(DATA_DIR, "config.json");
 const CONFIG_EXAMPLE_PATH = path.join(DATA_DIR, "config.json.example");
 const MAX_BODY_BYTES = 25 * 1024 * 1024;
 
@@ -86,22 +91,31 @@ async function ensureStorage() {
 }
 
 async function loadConfig() {
-  // First boot (fresh checkout or after `git clean`): seed config.json from the
-  // committed example so the live config — which is gitignored and survives
-  // `git pull` — starts from the curated defaults rather than bare client ones.
-  if (!existsSync(CONFIG_PATH) && existsSync(CONFIG_EXAMPLE_PATH)) {
+  // The committed example supplies DEFAULTS and any NEW keys added in later
+  // releases. The live config (CONFIG_PATH, gitignored) holds the operator's
+  // saved values and ALWAYS wins for keys it already has — so a `git pull` that
+  // adds a new setting is picked up, but never overwrites what you've set.
+  let example = {};
+  try { example = JSON.parse(await readFile(CONFIG_EXAMPLE_PATH, 'utf8')); } catch {}
+
+  let saved = {};
+  const savedExisted = existsSync(CONFIG_PATH);
+  if (savedExisted) {
     try {
-      await writeFile(CONFIG_PATH, await readFile(CONFIG_EXAMPLE_PATH, 'utf8'), 'utf8');
-      console.log('Seeded data/config.json from config.json.example');
+      saved = JSON.parse(await readFile(CONFIG_PATH, 'utf8'));
     } catch (err) {
-      console.error('Failed to seed config.json from example:', err.message);
+      console.error(`Failed to parse config at ${CONFIG_PATH}:`, err.message);
     }
   }
-  try {
-    const raw = await readFile(CONFIG_PATH, 'utf8');
-    Object.assign(config, JSON.parse(raw));
-  } catch (err) {
-    if (err.code !== 'ENOENT') console.error('Failed to load config.json:', err.message);
+
+  const merged = { ...example, ...saved };   // saved overrides example
+  Object.assign(config, merged);
+  console.log(`Config loaded from ${CONFIG_PATH}`);
+
+  // Persist the merged result so config.json gains new example keys and exists
+  // on first boot. Existing saved values are untouched (they already won above).
+  if (!savedExisted || JSON.stringify(merged) !== JSON.stringify(saved)) {
+    await saveConfig();
   }
 }
 
@@ -109,8 +123,9 @@ async function saveConfig() {
   const { port, ...saveable } = config;
   try {
     await writeFile(CONFIG_PATH, JSON.stringify(saveable, null, 2), 'utf8');
+    console.log(`Config saved to ${CONFIG_PATH}`);
   } catch (err) {
-    console.error('Failed to save config.json:', err.message);
+    console.error(`Failed to save config to ${CONFIG_PATH}:`, err.message);
   }
 }
 
