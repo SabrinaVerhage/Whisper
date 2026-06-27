@@ -141,3 +141,25 @@ dist
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 .vite/
+
+# Python
+__pycache__/
+*.py[cod]
+
+# Claude Code local settings
+.claude/settings.local.json
+
+# Project: visitor recordings and generated audio (binary, user data)
+recordings/*
+!recordings/.gitkeep
+
+# Project: visitor data
+data/whispers/*
+!data/whispers/.gitkeep
+data/whispers.jsonl
+
+# Project: local runtime config (use data/config.json.example as template)
+data/config.json
+
+# Design artifacts
+reference/
