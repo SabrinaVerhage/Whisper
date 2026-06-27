@@ -1,0 +1,1013 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Whisper Atlas</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: radial-gradient(130% 110% at 50% 0%, #EFEDE9, #DCD7CF);
+      color: #141018;
+      font-family: 'IBM Plex Mono', 'SF Mono', ui-monospace, monospace;
+      font-size: 12px;
+      height: 100dvh;
+      overflow: hidden;
+      -webkit-font-smoothing: antialiased;
+      position: relative;
+    }
+
+    /* ── Header ── */
+    #atlasHeader {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 10;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 20px 12px;
+      gap: 16px;
+      pointer-events: none;
+      background: linear-gradient(to bottom, rgba(239,237,233,0.60) 0%, transparent 100%);
+    }
+    .atlas-title-wrap { display: flex; flex-direction: column; gap: 3px; }
+    #atlasHeader h1 {
+      font-size: 14px;
+      font-weight: 600;
+      letter-spacing: 0.03em;
+      color: #141018;
+    }
+    #atlasSubtitle {
+      font-size: 8.5px;
+      letter-spacing: 0.06em;
+      color: rgba(20,16,24,0.46);
+      text-transform: uppercase;
+    }
+    #atlasViewers {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .viewer-dot-wrap {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 8.5px;
+      color: rgba(20,16,24,0.60);
+    }
+    .viewer-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    /* ── Body ── */
+    #atlasBody {
+      position: absolute;
+      inset: 0;
+      display: flex;
+    }
+
+    /* ── Canvas wrap ── */
+    .canvas-wrap {
+      flex: 1;
+      position: relative;
+      overflow: hidden;
+      min-width: 0;
+    }
+    #fieldCanvas {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      cursor: crosshair;
+    }
+    /* SVG grain overlay */
+    .grain-overlay {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      mix-blend-mode: soft-light;
+      opacity: 0.38;
+    }
+
+    /* ── Detail panel ── */
+    #detailPanel {
+      width: 260px;
+      flex-shrink: 0;
+      background: rgba(243,241,237,0.92);
+      backdrop-filter: blur(8px);
+      border-left: 1px solid rgba(20,16,24,0.10);
+      display: flex;
+      flex-direction: column;
+      padding: 54px 20px 18px;
+      gap: 0;
+      overflow-y: auto;
+    }
+    .dp-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      margin-bottom: 14px;
+    }
+    .dp-label {
+      font-size: 8px;
+      letter-spacing: 0.12em;
+      color: rgba(20,16,24,0.46);
+      text-transform: uppercase;
+    }
+    #dpBy {
+      font-size: 8px;
+      letter-spacing: 0.06em;
+      color: rgba(20,16,24,0.36);
+    }
+    #dpTags {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      margin-bottom: 14px;
+      min-height: 22px;
+    }
+    .dp-tag {
+      font-size: 9px;
+      padding: 4px 9px;
+      border-radius: 12px;
+      letter-spacing: 0.06em;
+      font-weight: 500;
+    }
+    .dp-tag--primary { color: #fff; }
+    .dp-tag--secondary {
+      background: rgba(20,16,24,0.08);
+      color: rgba(20,16,24,0.60);
+    }
+    .dp-quote-label {
+      font-size: 7.5px;
+      letter-spacing: 0.12em;
+      color: rgba(20,16,24,0.40);
+      text-transform: uppercase;
+      margin-bottom: 8px;
+    }
+    #dpQuote {
+      font-size: 15px;
+      line-height: 1.45;
+      font-style: italic;
+      color: #141018;
+      margin-bottom: 18px;
+      min-height: 42px;
+    }
+    .dp-si-row {
+      display: flex;
+      align-items: baseline;
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+    #dpSIScore {
+      font-size: 38px;
+      font-weight: 600;
+      line-height: 1;
+      color: #141018;
+    }
+    .dp-si-pct { font-size: 14px; font-weight: 400; }
+    .dp-si-desc {
+      font-size: 7.5px;
+      letter-spacing: 0.10em;
+      color: rgba(20,16,24,0.46);
+      text-transform: uppercase;
+      line-height: 1.4;
+    }
+    .dp-section-label {
+      font-size: 7.5px;
+      letter-spacing: 0.10em;
+      color: rgba(20,16,24,0.46);
+      text-transform: uppercase;
+      margin-bottom: 8px;
+      margin-top: 6px;
+    }
+    .dp-bars { display: flex; flex-direction: column; gap: 5px; margin-bottom: 4px; }
+    .dp-bar-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .dp-bar-label {
+      font-size: 8.5px;
+      color: rgba(20,16,24,0.60);
+      width: 78px;
+      flex-shrink: 0;
+      text-align: right;
+      letter-spacing: 0.03em;
+    }
+    .dp-bar-track {
+      flex: 1;
+      height: 4px;
+      background: rgba(20,16,24,0.08);
+      border-radius: 2px;
+      overflow: hidden;
+    }
+    .dp-bar-fill {
+      height: 100%;
+      border-radius: 2px;
+      transition: width 0.3s ease;
+    }
+    .dp-bar-val {
+      font-size: 8px;
+      color: rgba(20,16,24,0.40);
+      width: 26px;
+      text-align: right;
+    }
+    #dpFooter {
+      margin-top: auto;
+      padding-top: 14px;
+      font-size: 7.5px;
+      color: rgba(20,16,24,0.35);
+      letter-spacing: 0.05em;
+      line-height: 1.6;
+    }
+
+    /* ── Empty detail state ── */
+    .dp-empty {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      color: rgba(20,16,24,0.25);
+      font-size: 11px;
+      text-align: center;
+      padding: 24px;
+    }
+    .dp-empty-icon { font-size: 28px; opacity: 0.4; }
+
+    /* ── Loading state ── */
+    .center-msg {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      color: rgba(20,16,24,0.36);
+      font-size: 12px;
+    }
+
+    /* ── Fingerprint hover overlay ── */
+    #umapFpCanvas {
+      position: absolute;
+      pointer-events: none;
+      z-index: 5;
+    }
+    #umapFpLabel {
+      position: absolute;
+      pointer-events: none;
+      z-index: 6;
+      font: 500 8px 'IBM Plex Mono', monospace;
+      letter-spacing: 0.10em;
+      text-transform: uppercase;
+      color: rgba(255,255,255,0.88);
+      background: rgba(10,8,14,0.65);
+      padding: 4px 9px;
+      border-radius: 4px;
+      white-space: nowrap;
+      transform: translateX(-50%);
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+    #umapFpLabel.visible { opacity: 1; }
+
+    /* ── Tooltip ── */
+    #tooltip {
+      position: fixed;
+      display: none;
+      background: rgba(243,241,237,0.96);
+      border: 1px solid rgba(20,16,24,0.12);
+      border-radius: 6px;
+      padding: 9px 12px;
+      font-size: 11px;
+      pointer-events: none;
+      max-width: 200px;
+      z-index: 100;
+      box-shadow: 0 4px 16px rgba(20,16,24,0.10);
+    }
+    #tooltip .tt-si { font-size: 20px; font-weight: 600; line-height: 1; margin-bottom: 5px; }
+    #tooltip .tt-row { color: rgba(20,16,24,0.50); margin-top: 2px; }
+    #tooltip .tt-row span { color: #141018; }
+  </style>
+</head>
+<body>
+
+<!-- Grain filter definition (reused by SVG) -->
+<svg style="position:absolute;width:0;height:0">
+  <defs>
+    <filter id="grain-filter">
+      <feTurbulence type="fractalNoise" baseFrequency="0.72" numOctaves="4" stitchTiles="stitch"/>
+      <feColorMatrix type="saturate" values="0"/>
+    </filter>
+  </defs>
+</svg>
+
+<div id="atlasHeader">
+  <div class="atlas-title-wrap">
+    <h1>Whisper Atlas</h1>
+    <span id="atlasSubtitle">loading…</span>
+  </div>
+  <div id="atlasViewers">
+    <!-- viewer dots injected by JS -->
+  </div>
+</div>
+
+<div id="atlasBody">
+  <div class="canvas-wrap">
+    <canvas id="fieldCanvas"></canvas>
+
+    <!-- Fingerprint overlay canvas (transparent, same as mobile) -->
+    <canvas id="umapFpCanvas" hidden></canvas>
+    <!-- Fingerprint code label -->
+    <div id="umapFpLabel"></div>
+
+    <!-- Grain overlay -->
+    <svg class="grain-overlay" aria-hidden="true">
+      <rect width="100%" height="100%" filter="url(#grain-filter)"/>
+    </svg>
+
+    <!-- Loading state -->
+    <div id="centerMsg" class="center-msg">
+      <span style="font-size:28px;opacity:0.2">◇</span>
+      <span>loading field…</span>
+    </div>
+  </div>
+
+  <!-- Right detail panel -->
+  <div id="detailPanel">
+    <div class="dp-header">
+      <span class="dp-label">Last Inspected</span>
+      <span id="dpBy">by you</span>
+    </div>
+    <div id="dpTags"></div>
+    <p class="dp-quote-label">What was said</p>
+    <blockquote id="dpQuote"></blockquote>
+    <div class="dp-si-row">
+      <div>
+        <span id="dpSIScore">—</span><span class="dp-si-pct" id="dpSIPct"></span>
+      </div>
+      <span class="dp-si-desc">Sensuality<br>Index</span>
+    </div>
+    <div class="dp-section-label">Sensuality Index · 6 Acoustic</div>
+    <div id="dpAcousticBars" class="dp-bars"></div>
+    <div class="dp-section-label">Semantic Dimensions · 8</div>
+    <div id="dpSemanticBars" class="dp-bars"></div>
+    <div id="dpFooter"></div>
+    <div class="dp-empty" id="dpEmpty">
+      <span class="dp-empty-icon">◌</span>
+      <span>click a whisper<br>to inspect it</span>
+    </div>
+  </div>
+</div>
+
+<div id="tooltip">
+  <div class="tt-si" id="ttSI">—</div>
+  <div class="tt-row" id="ttTagRow">tag &nbsp;&nbsp;<span id="ttTag">—</span></div>
+  <div class="tt-row">dur &nbsp;&nbsp;<span id="ttDur">—</span></div>
+</div>
+
+<script src="/public/fingerprint.js"></script>
+<script>
+/* ── Dimensions ─────────────────────────────────────────────────────────── */
+const ACOUSTIC_DIMS = ['breathiness','darkness','softness','slowness','pitchLowness','pitchSteadiness'];
+const ACOUSTIC_LABELS = { breathiness:'breathiness', darkness:'darkness', softness:'softness',
+  slowness:'slowness', pitchLowness:'pitch low', pitchSteadiness:'pitch steady' };
+const SEMANTIC_DIMS = ['sensory','relational','taboo','tenderness','fantasy','identity','longing','unspeakable'];
+
+const DIM_COLORS = {
+  breathiness:     '#FF2D8E',
+  darkness:        '#9055D4',
+  slowness:        '#C060E0',
+  softness:        '#FF8A2B',
+  pitchLowness:    '#FF5070',
+  pitchSteadiness: '#FFAE00',
+};
+const DIM_BLOOM = {
+  breathiness:     '#FF9EC2',
+  darkness:        '#C090E8',
+  slowness:        '#D8A0F0',
+  softness:        '#FFB880',
+  pitchLowness:    '#FF9090',
+  pitchSteadiness: '#FFD070',
+};
+
+const SEM_COLOR = '#9055D4';
+
+/* ── Feature extraction ─────────────────────────────────────────────────── */
+function featureVec(w) {
+  const c = w.sensuality?.components || {};
+  if (Object.keys(c).length === 0) return null;
+  const acoustic = ACOUSTIC_DIMS.map(k => c[k] != null ? c[k] : 0.5);
+  const sem = w.llm?.semantics || {};
+  const semantic = SEMANTIC_DIMS.map(k => sem[k] != null ? Number(sem[k]) : 0.5);
+  return [...acoustic, ...semantic];
+}
+
+function dominantDim(w) {
+  const c = w.sensuality?.components || {};
+  let best = 'breathiness', bestVal = -1;
+  for (const k of ACOUSTIC_DIMS) {
+    const v = c[k] ?? 0;
+    if (v > bestVal) { bestVal = v; best = k; }
+  }
+  return best;
+}
+
+function topSemanticDim(w) {
+  const sem = w.llm?.semantics;
+  if (!sem) return null;
+  let best = null, bestVal = -1;
+  for (const k of SEMANTIC_DIMS) {
+    const v = Number(sem[k]);
+    if (v > bestVal) { bestVal = v; best = k; }
+  }
+  return bestVal >= 0.4 ? best : null;
+}
+
+/* ── PCA ─────────────────────────────────────────────────────────────────── */
+function pca2d(data) {
+  const n = data.length, d = data[0].length;
+  const mean = new Array(d).fill(0);
+  for (const v of data) v.forEach((x, i) => { mean[i] += x / n; });
+  const C = data.map(v => v.map((x, i) => x - mean[i]));
+  const cov = Array.from({length: d}, (_, i) =>
+    Array.from({length: d}, (_, j) => C.reduce((s, v) => s + v[i] * v[j], 0) / n));
+  function mv(m, v) { return m.map(row => row.reduce((s, x, j) => s + x * v[j], 0)); }
+  function dot(a, b) { return a.reduce((s, x, i) => s + x * b[i], 0); }
+  function norm(v) { const l = Math.sqrt(dot(v, v)); return v.map(x => x / (l || 1)); }
+  let v1 = norm(new Array(d).fill(0).map((_, i) => i === 0 ? 1 : 0.1));
+  for (let i = 0; i < 120; i++) v1 = norm(mv(cov, v1));
+  let v2 = norm(new Array(d).fill(0).map((_, i) => i === 1 ? 1 : 0.1));
+  for (let i = 0; i < 120; i++) {
+    let u = mv(cov, v2);
+    u = u.map((x, k) => x - dot(u, v1) * v1[k]);
+    v2 = norm(u);
+  }
+  return C.map(v => [dot(v, v1), dot(v, v2)]);
+}
+
+/* ── t-SNE ───────────────────────────────────────────────────────────────── */
+function tsneLayout(data, initPos) {
+  const n = data.length, d = data[0].length;
+  const perp = Math.min(n - 1, Math.max(2, Math.floor(n / 4)));
+  const hdist = Array.from({length: n}, (_, i) =>
+    Array.from({length: n}, (_, j) => {
+      let s = 0;
+      for (let k = 0; k < d; k++) { const dv = data[i][k] - data[j][k]; s += dv * dv; }
+      return Math.sqrt(s);
+    }));
+  const P = Array.from({length: n}, (_, i) => {
+    const row = hdist[i].slice().sort((a, b) => a - b);
+    const bw  = (row[perp] || row[row.length - 1]) ** 2 / 2 + 1e-8;
+    const aff = hdist[i].map((d, j) => j === i ? 0 : Math.exp(-d * d / bw));
+    const sum = aff.reduce((a, x) => a + x, 0);
+    return aff.map(x => x / (sum + 1e-10));
+  });
+  const Psym = Array.from({length: n}, (_, i) =>
+    Array.from({length: n}, (_, j) => (P[i][j] + P[j][i]) / (2 * n)));
+  let pos = initPos.map(([x, y]) => [x * 0.05, y * 0.05]);
+  let mom = Array.from({length: n}, () => [0, 0]);
+  for (let iter = 0; iter < 350; iter++) {
+    const lr = 200 * Math.max(0.01, 1 - iter / 350);
+    const mScale = iter < 100 ? 0.5 : 0.8;
+    const Q = Array.from({length: n}, (_, i) =>
+      Array.from({length: n}, (_, j) => {
+        if (i === j) return 0;
+        const dx = pos[i][0] - pos[j][0], dy = pos[i][1] - pos[j][1];
+        return 1 / (1 + dx * dx + dy * dy);
+      }));
+    const qsum = Q.reduce((s, row) => s + row.reduce((a, x) => a + x, 0), 0);
+    const grad = Array.from({length: n}, () => [0, 0]);
+    for (let i = 0; i < n; i++) {
+      for (let j = 0; j < n; j++) {
+        if (i === j) continue;
+        const pij = Psym[i][j];
+        const qij = Q[i][j] / (qsum + 1e-10);
+        const f   = 4 * (pij - qij) * Q[i][j];
+        const dx  = pos[i][0] - pos[j][0], dy = pos[i][1] - pos[j][1];
+        const dist = Math.sqrt(dx * dx + dy * dy) + 1e-8;
+        grad[i][0] += f * dx / dist;
+        grad[i][1] += f * dy / dist;
+      }
+    }
+    for (let i = 0; i < n; i++) {
+      mom[i][0] = mScale * mom[i][0] + lr * grad[i][0];
+      mom[i][1] = mScale * mom[i][1] + lr * grad[i][1];
+      pos[i][0] += mom[i][0];
+      pos[i][1] += mom[i][1];
+    }
+  }
+  return pos;
+}
+
+/* ── State ───────────────────────────────────────────────────────────────── */
+let points   = [];
+let hoverId  = null;
+let pinnedId      = null;
+let pinnedWhisper = null;
+let localMouseX = -1, localMouseY = -1;
+let wsViewers = [];
+let pad = 52;
+
+// Hover fingerprint (overlay canvas, same lifecycle as mobile)
+let _umapFpRenderer = null;
+let _fpCfg = {};
+const FP_SIZE = 360; // logical px — same visual scale as mobile
+
+const canvas  = document.getElementById('fieldCanvas');
+
+/* ── toScreen / fromScreen ───────────────────────────────────────────────── */
+let toScreen = null, xLo = 0, xHi = 1, yLo = 0, yHi = 1;
+
+function buildToScreen(W, H) {
+  const xs = points.map(p => p.x), ys = points.map(p => p.y);
+  xLo = Math.min(...xs); const xHi_ = Math.max(...xs);
+  yLo = Math.min(...ys); const yHi_ = Math.max(...ys);
+  const xRange = xHi_ - xLo || 1, yRange = yHi_ - yLo || 1;
+  xHi = xHi_; yHi = yHi_;
+  toScreen = (px, py) => [
+    pad + (px - xLo) / xRange * (W - pad * 2),
+    pad + (py - yLo) / yRange * (H - pad * 2),
+  ];
+}
+
+/* ── Hover fingerprint (transparent overlay, mobile-identical lifecycle) ─── */
+function openHoverFingerprint(w, sx, sy) {
+  const oc  = document.getElementById('umapFpCanvas');
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  oc.width        = Math.round(FP_SIZE * dpr);
+  oc.height       = Math.round(FP_SIZE * dpr);
+  oc.style.width  = FP_SIZE + 'px';
+  oc.style.height = FP_SIZE + 'px';
+  oc.style.left   = (sx - FP_SIZE / 2) + 'px';
+  oc.style.top    = (sy - FP_SIZE / 2) + 'px';
+  oc.hidden = false;
+
+  if (_umapFpRenderer) { _umapFpRenderer.stop(); _umapFpRenderer = null; }
+  _umapFpRenderer = new FingerprintRenderer(oc, buildFingerprintParams(w), _fpCfg);
+  _umapFpRenderer.start();
+
+  const code  = w.wspr || w.id?.slice(-4).toUpperCase() || '????';
+  const label = document.getElementById('umapFpLabel');
+  label.textContent = 'WSPR · ' + code;
+  label.style.left = sx + 'px';
+  label.style.top  = (sy - FP_SIZE / 2 - 26) + 'px';
+  label.classList.add('visible');
+}
+
+function closeHoverFingerprint() {
+  document.getElementById('umapFpLabel').classList.remove('visible');
+  if (_umapFpRenderer) {
+    const oc = document.getElementById('umapFpCanvas');
+    _umapFpRenderer.shrink(() => {
+      oc.hidden = true;
+      _umapFpRenderer = null;
+    });
+  }
+}
+
+/* ── Canvas draw ─────────────────────────────────────────────────────────── */
+function draw() {
+  if (!points.length || !toScreen) return;
+  const dpr = window.devicePixelRatio || 1;
+  const W   = canvas.clientWidth;
+  const H   = canvas.clientHeight;
+  canvas.width  = W * dpr;
+  canvas.height = H * dpr;
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+
+  // Background
+  const bg = ctx.createRadialGradient(W * 0.5, 0, 0, W * 0.5, 0, Math.max(W, H) * 1.2);
+  bg.addColorStop(0, '#EFEDE9');
+  bg.addColorStop(1, '#DCD7CF');
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, W, H);
+
+  // Bloom layer — radial gradient per cluster centroid
+  ctx.save();
+  ctx.globalCompositeOperation = 'multiply';
+  for (const [dim, color] of Object.entries(DIM_BLOOM)) {
+    const cluster = points.filter(p => p.dim === dim);
+    if (!cluster.length) continue;
+    const cx = cluster.reduce((s, p) => s + p.sx, 0) / cluster.length;
+    const cy = cluster.reduce((s, p) => s + p.sy, 0) / cluster.length;
+    const spread = Math.max(60, Math.sqrt(cluster.length) * 14);
+    const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, spread);
+    g.addColorStop(0,   color + '70');
+    g.addColorStop(0.5, color + '44');
+    g.addColorStop(1,   'transparent');
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.arc(cx, cy, spread, 0, Math.PI * 2);
+    ctx.fill();
+    // Scattered smaller blooms
+    for (const p of cluster.slice(0, 14)) {
+      const sg = ctx.createRadialGradient(p.sx, p.sy, 0, p.sx, p.sy, 22);
+      sg.addColorStop(0,   color + '50');
+      sg.addColorStop(1,   'transparent');
+      ctx.fillStyle = sg;
+      ctx.beginPath();
+      ctx.arc(p.sx, p.sy, 22, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+  ctx.restore();
+
+  // Dots
+  for (const p of points) {
+    const isPinned = p.w.id === pinnedId;
+    const isHov    = p.w.id === hoverId;
+    const r = isHov || isPinned ? p.r + 2 : p.r;
+
+    if (isHov || isPinned) {
+      const g = ctx.createRadialGradient(p.sx, p.sy, 0, p.sx, p.sy, r * 3.5);
+      g.addColorStop(0, p.color + '60');
+      g.addColorStop(1, 'transparent');
+      ctx.fillStyle = g;
+      ctx.beginPath();
+      ctx.arc(p.sx, p.sy, r * 3.5, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    ctx.beginPath();
+    ctx.arc(p.sx, p.sy, r, 0, Math.PI * 2);
+    ctx.fillStyle = isHov ? '#fff' : p.color;
+    ctx.globalAlpha = isHov ? 1 : p.opacity;
+    ctx.fill();
+    ctx.globalAlpha = 1;
+
+    if (isPinned) {
+      ctx.strokeStyle = '#fff';
+      ctx.lineWidth = 1.1;
+      ctx.beginPath();
+      ctx.arc(p.sx, p.sy, r + 3, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.strokeStyle = p.color + 'aa';
+      ctx.lineWidth = 1;
+      ctx.setLineDash([3, 3]);
+      ctx.beginPath();
+      ctx.arc(p.sx, p.sy, r + 8, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+  }
+
+  // Frame corners
+  const x0 = pad - 6, y0 = pad - 6, x1 = W - pad + 6, y1 = H - pad + 6;
+  const arm = 12;
+  ctx.strokeStyle = 'rgba(20,16,24,0.28)';
+  ctx.lineWidth = 0.8;
+  ctx.beginPath();
+  ctx.moveTo(x0 + arm, y0); ctx.lineTo(x0, y0); ctx.lineTo(x0, y0 + arm);
+  ctx.moveTo(x1 - arm, y0); ctx.lineTo(x1, y0); ctx.lineTo(x1, y0 + arm);
+  ctx.moveTo(x0 + arm, y1); ctx.lineTo(x0, y1); ctx.lineTo(x0, y1 - arm);
+  ctx.moveTo(x1 - arm, y1); ctx.lineTo(x1, y1); ctx.lineTo(x1, y1 - arm);
+  ctx.stroke();
+
+  // Viewer lenses (phone guests)
+  for (const v of wsViewers) {
+    drawLens(ctx, v, W, H);
+  }
+
+  // Local "you" lens (mouse)
+  if (localMouseX >= 0) {
+    drawLens(ctx, { name: 'you', color: '#141018', x: localMouseX, y: localMouseY, local: true }, W, H);
+  }
+}
+
+function drawLens(ctx, viewer, W, H) {
+  const sx = pad + viewer.x * (W - 2 * pad);
+  const sy = pad + viewer.y * (H - 2 * pad);
+  const R  = 72;
+
+  // Outer border (viewer color)
+  ctx.strokeStyle = viewer.color;
+  ctx.lineWidth = 3.5;
+  ctx.beginPath();
+  ctx.arc(sx, sy, R, 0, Math.PI * 2);
+  ctx.stroke();
+
+  // Inner white ring
+  ctx.strokeStyle = 'rgba(255,255,255,0.85)';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.arc(sx, sy, R - 3, 0, Math.PI * 2);
+  ctx.stroke();
+
+  // Crosshair
+  ctx.strokeStyle = viewer.color + '88';
+  ctx.lineWidth = 0.9;
+  ctx.beginPath();
+  ctx.moveTo(sx - 7, sy); ctx.lineTo(sx + 7, sy);
+  ctx.moveTo(sx, sy - 7); ctx.lineTo(sx, sy + 7);
+  ctx.stroke();
+
+  // Name tag
+  ctx.save();
+  ctx.font = '500 8px "IBM Plex Mono", monospace';
+  const nameW = ctx.measureText(viewer.name).width + 10;
+  const tagX  = sx - nameW / 2;
+  const tagY  = sy - R - 22;
+  ctx.fillStyle = viewer.color;
+  ctx.beginPath();
+  ctx.roundRect(tagX, tagY, nameW, 16, 5);
+  ctx.fill();
+  ctx.fillStyle = viewer.local ? '#F3F2F0' : '#fff';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(viewer.name, sx, tagY + 8);
+  ctx.restore();
+}
+
+/* ── Interaction ─────────────────────────────────────────────────────────── */
+canvas.addEventListener('mousemove', e => {
+  const rect = canvas.getBoundingClientRect();
+  const mx = e.clientX - rect.left;
+  const my = e.clientY - rect.top;
+  const W  = canvas.clientWidth;
+  const H  = canvas.clientHeight;
+
+  // Update local "you" lens position (normalized 0-1)
+  localMouseX = (mx - pad) / (W - 2 * pad);
+  localMouseY = (my - pad) / (H - 2 * pad);
+
+  // Hover detection
+  let best = null, bestDist = 26;
+  for (const p of points) {
+    if (p.sx == null) continue;
+    const d = Math.hypot(p.sx - mx, p.sy - my);
+    if (d < bestDist) { bestDist = d; best = p; }
+  }
+
+  if (!best) {
+    tooltip.style.display = 'none';
+    if (hoverId) { hoverId = null; closeHoverFingerprint(); }
+    else draw(); // redraw for "you" lens movement
+    return;
+  }
+
+  if (hoverId !== best.w.id) {
+    hoverId = best.w.id;
+    openHoverFingerprint(best.w, best.sx, best.sy);
+  } else draw(); // still need to redraw for lens movement
+
+  // Tooltip
+  const w = best.w;
+  document.getElementById('ttSI').textContent = w.sensuality?.score != null
+    ? Math.round(w.sensuality.score * 100) + '%' : '—';
+  document.getElementById('ttSI').style.color = best.color;
+  const dim = topSemanticDim(w) || dominantDim(w);
+  document.getElementById('ttTag').textContent = dim || '—';
+  document.getElementById('ttTagRow').style.display = dim ? '' : 'none';
+  const dur = w.features?.durationLibrosa ?? w.features?.duration;
+  document.getElementById('ttDur').textContent = dur != null ? `${Math.round(dur)}s` : '—';
+
+  let tx = e.clientX + 14, ty = e.clientY - 10;
+  if (tx + 210 > window.innerWidth)  tx = e.clientX - 220;
+  if (ty + 80  > window.innerHeight) ty = e.clientY - 80;
+  tooltip.style.left    = tx + 'px';
+  tooltip.style.top     = ty + 'px';
+  tooltip.style.display = 'block';
+});
+
+canvas.addEventListener('mouseleave', () => {
+  tooltip.style.display = 'none';
+  localMouseX = -1; localMouseY = -1;
+  if (hoverId) { hoverId = null; closeHoverFingerprint(); }
+  else draw();
+});
+
+canvas.addEventListener('click', e => {
+  const rect = canvas.getBoundingClientRect();
+  const mx = e.clientX - rect.left, my = e.clientY - rect.top;
+  let best = null, bestDist = 26;
+  for (const p of points) {
+    if (p.sx == null) continue;
+    const d = Math.hypot(p.sx - mx, p.sy - my);
+    if (d < bestDist) { bestDist = d; best = p; }
+  }
+  if (!best) return;
+  pinnedId      = best.w.id;
+  pinnedWhisper = best.w;
+  renderDetailPanel(best.w);
+  draw();
+});
+
+window.addEventListener('resize', () => {
+  if (points.length) {
+    const W = canvas.clientWidth, H = canvas.clientHeight;
+    buildToScreen(W, H);
+    points.forEach(p => { [p.sx, p.sy] = toScreen(p.x, p.y); });
+  }
+  draw();
+});
+
+/* ── Detail panel ────────────────────────────────────────────────────────── */
+function renderDetailPanel(w) {
+  document.getElementById('dpEmpty').style.display = 'none';
+
+  const dim  = dominantDim(w);
+  const sem  = topSemanticDim(w);
+  const color = DIM_COLORS[dim] || '#9055D4';
+
+  // Tags
+  const tagsEl = document.getElementById('dpTags');
+  tagsEl.innerHTML = '';
+  if (dim) {
+    const t = document.createElement('span');
+    t.className = 'dp-tag dp-tag--primary';
+    t.style.background = color;
+    t.textContent = ACOUSTIC_LABELS[dim] || dim;
+    tagsEl.appendChild(t);
+  }
+  if (sem) {
+    const t = document.createElement('span');
+    t.className = 'dp-tag dp-tag--secondary';
+    t.textContent = sem;
+    tagsEl.appendChild(t);
+  }
+  const code = w.wspr || w.id?.slice(-4).toUpperCase() || '????';
+  const codeTag = document.createElement('span');
+  codeTag.className = 'dp-tag dp-tag--secondary';
+  codeTag.style.letterSpacing = '0.08em';
+  codeTag.textContent = 'WSPR · ' + code;
+  tagsEl.appendChild(codeTag);
+
+  // Quote
+  const rephrased = w.llm?.rephrased?.trim();
+  const original  = w.transcript?.trim();
+  const display   = rephrased || original || 'wordless whisper';
+  document.getElementById('dpQuote').textContent = '“' + display + '”';
+
+  // SI score
+  const score = w.sensuality?.score;
+  if (score != null) {
+    document.getElementById('dpSIScore').textContent = Math.round(score * 100);
+    document.getElementById('dpSIPct').textContent   = '%';
+  } else {
+    document.getElementById('dpSIScore').textContent = '—';
+    document.getElementById('dpSIPct').textContent   = '';
+  }
+
+  // By label
+  document.getElementById('dpBy').textContent = 'by you';
+
+  // Acoustic bars
+  const comps  = w.sensuality?.components || {};
+  const aEl    = document.getElementById('dpAcousticBars');
+  aEl.innerHTML = ACOUSTIC_DIMS.map(k => {
+    const v    = comps[k];
+    const pct  = v != null ? Math.round(v * 100) : 0;
+    const barColor = DIM_COLORS[k] || '#9055D4';
+    return `<div class="dp-bar-row">
+      <span class="dp-bar-label">${ACOUSTIC_LABELS[k]}</span>
+      <div class="dp-bar-track">
+        <div class="dp-bar-fill" style="width:${pct}%;background:${barColor}"></div>
+      </div>
+      <span class="dp-bar-val">${v != null ? v.toFixed(2) : '—'}</span>
+    </div>`;
+  }).join('');
+
+  // Semantic bars
+  const sem2 = w.llm?.semantics || {};
+  const sEl  = document.getElementById('dpSemanticBars');
+  sEl.innerHTML = SEMANTIC_DIMS.map(k => {
+    const v   = sem2[k];
+    const pct = v != null ? Math.round(Number(v) * 100) : 0;
+    return `<div class="dp-bar-row">
+      <span class="dp-bar-label">${k}</span>
+      <div class="dp-bar-track">
+        <div class="dp-bar-fill" style="width:${pct}%;background:${SEM_COLOR}"></div>
+      </div>
+      <span class="dp-bar-val">${v != null ? Number(v).toFixed(2) : '—'}</span>
+    </div>`;
+  }).join('');
+
+  // Footer
+  const hasPraat = w.features?.hnr != null;
+  const hasSem   = !!w.llm?.semantics;
+  const parts    = ['acoustic'];
+  if (hasPraat) parts.push('Praat/librosa');
+  if (hasSem)   parts.push('semantic · dolphin-mistral');
+  document.getElementById('dpFooter').textContent = parts.join(' · ');
+}
+
+/* ── Header viewer dots ──────────────────────────────────────────────────── */
+function updateHeaderViewers() {
+  const el = document.getElementById('atlasViewers');
+  // Always show "you" dot
+  const dots = [{ name: 'you', color: '#141018' }, ...wsViewers];
+  el.innerHTML = dots.map(v => `
+    <div class="viewer-dot-wrap">
+      <div class="viewer-dot" style="background:${v.color};box-shadow:0 0 0 2px #EFEDE9,0 0 0 3.5px ${v.color}88"></div>
+      <span>${v.name}</span>
+    </div>`).join('');
+}
+
+/* ── WebSocket ───────────────────────────────────────────────────────────── */
+function connectWS() {
+  const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+  const ws    = new WebSocket(`${proto}//${location.host}/ws?type=display`);
+  ws.onmessage = ({ data }) => {
+    try {
+      const msg = JSON.parse(data);
+      if (msg.type === 'viewers') {
+        wsViewers = msg.viewers || [];
+        updateHeaderViewers();
+        draw();
+      }
+    } catch {}
+  };
+  ws.onclose  = () => setTimeout(connectWS, 3000);
+  ws.onerror  = () => {};
+}
+
+/* ── Load + layout ───────────────────────────────────────────────────────── */
+async function load() {
+  document.getElementById('centerMsg').style.display = 'flex';
+  document.getElementById('centerMsg').querySelector('span:last-child').textContent = 'loading field…';
+  points = [];
+
+  try { const c = await fetch('/config').then(r => r.json()); _fpCfg = buildFingerprintConfig(c); } catch {}
+
+  let whispers;
+  try {
+    const res = await fetch('/whispers');
+    const d   = await res.json();
+    whispers  = d.whispers || [];
+  } catch {
+    document.getElementById('centerMsg').querySelector('span:last-child').textContent = 'could not reach server';
+    return;
+  }
+
+  const valid = whispers.filter(w => featureVec(w) !== null);
+  const total = whispers.length;
+  const exploring = wsViewers.length;
+
+  document.getElementById('atlasSubtitle').textContent =
+    `UMAP · ${valid.length} whispers${exploring ? ` · ${exploring + 1} exploring now` : ''}`;
+
+  if (valid.length < 2) {
+    document.getElementById('centerMsg').querySelector('span:last-child').textContent =
+      valid.length === 0 ? 'no feature data yet' : 'need at least 2 whispers to map the field';
+    return;
+  }
+
+  const vecs   = valid.map(w => featureVec(w));
+  const initXY = pca2d(vecs);
+  let finalXY, algo;
+
+  if (valid.length < 8) {
+    finalXY = initXY; algo = 'pca';
+  } else {
+    finalXY = tsneLayout(vecs, initXY); algo = 't-sne';
+  }
+
+  const W = canvas.clientWidth, H = canvas.clientHeight;
+
+  points = valid.map((w, i) => ({
+    w,
+    x:       finalXY[i][0],
+    y:       finalXY[i][1],
+    dim:     dominantDim(w),
+    color:   DIM_COLORS[dominantDim(w)] || '#9055D4',
+    opacity: 0.62 + Math.random() * 0.32,
+    r:       Math.max(4, Math.min(7, 4 + (w.features?.durationLibrosa ?? w.features?.duration ?? 3) * 0.25)),
+  }));
+
+  buildToScreen(W, H);
+  points.forEach(p => { [p.sx, p.sy] = toScreen(p.x, p.y); });
+
+  const hasSemantic = valid.some(w => w.llm?.semantics);
+  document.getElementById('atlasSubtitle').textContent =
+    `UMAP · ${valid.length} whispers` +
+    (exploring ? ` · ${exploring + 1} exploring now` : '') +
+    ` · ${algo}${hasSemantic ? ' · semantic' : ''}`;
+
+  document.getElementById('centerMsg').style.display = 'none';
+  updateHeaderViewers();
+  draw();
+}
+
+/* ── Boot ────────────────────────────────────────────────────────────────── */
+const tooltip = document.getElementById('tooltip');
+updateHeaderViewers();
+connectWS();
+load();
+</script>
+</body>
+</html>

@@ -1,0 +1,1050 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Whisper Admin</title>
+  <style>
+    :root {
+      --bg: #0a0a0f;
+      --surface: #13131a;
+      --border: #252530;
+      --text: #c8c8d4;
+      --muted: #555568;
+      --accent: #7b6fff;
+      --green: #4ade80;
+      --red: #f87171;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'SF Mono', 'Fira Code', ui-monospace, monospace;
+      font-size: 13px;
+      line-height: 1.6;
+      padding: 32px;
+    }
+    h1 { font-size: 18px; font-weight: 500; letter-spacing: 0.12em; color: #fff; }
+    h2 { font-size: 10px; font-weight: 600; letter-spacing: 0.18em; text-transform: uppercase; color: var(--muted); margin-bottom: 14px; }
+    .header { display: flex; align-items: center; gap: 12px; margin-bottom: 32px; }
+    .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); flex-shrink: 0; }
+    .dot.ok { background: var(--green); box-shadow: 0 0 6px var(--green); }
+    .dot.err { background: var(--red); }
+    .status-label { font-size: 11px; color: var(--muted); }
+    .layout { display: grid; grid-template-columns: 320px 1fr; gap: 24px; align-items: start; }
+    .card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 18px; margin-bottom: 16px; }
+    .card:last-child { margin-bottom: 0; }
+    .stat-row { display: flex; justify-content: space-between; padding: 5px 0; border-bottom: 1px solid var(--border); }
+    .stat-row:last-child { border-bottom: none; }
+    .stat-label { color: var(--muted); }
+    .stat-value { color: var(--text); }
+    .field { margin-bottom: 13px; }
+    .field:last-of-type { margin-bottom: 0; }
+    .field label { display: block; font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); margin-bottom: 5px; }
+    .field input, .field select { width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: 4px; color: var(--text); font-family: inherit; font-size: 13px; padding: 6px 10px; appearance: none; }
+    .field input:focus, .field select:focus { outline: none; border-color: var(--accent); }
+    .field input[readonly] { color: var(--muted); cursor: default; }
+    .hint { font-size: 10px; color: var(--muted); margin-top: 4px; }
+    .row { display: flex; align-items: center; gap: 10px; margin-top: 14px; }
+    button { background: var(--accent); color: #fff; border: none; border-radius: 4px; padding: 6px 16px; font-family: inherit; font-size: 12px; cursor: pointer; }
+    button:hover { opacity: 0.85; }
+    .flash { font-size: 11px; color: var(--green); opacity: 0; transition: opacity 0.3s; }
+    .flash.show { opacity: 1; }
+
+    /* ── Overview ── */
+    .overview { display: flex; align-items: flex-end; gap: 3px; height: 48px; margin-bottom: 16px; background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 8px 10px; overflow: hidden; }
+    .ov-bar { flex: 1; min-width: 4px; max-width: 24px; border-radius: 2px 2px 0 0; opacity: 0.75; transition: opacity 0.15s; }
+    .ov-bar:hover { opacity: 1; }
+    .ov-empty { color: var(--muted); font-size: 11px; align-self: center; }
+
+    /* ── Whisper list ── */
+    .whisper-list { display: flex; flex-direction: column; gap: 8px; }
+    .whisper-item { background: var(--surface); border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
+    .whisper-head { display: flex; align-items: center; gap: 12px; padding: 11px 14px; cursor: pointer; user-select: none; }
+    .whisper-head:hover { background: rgba(255,255,255,0.025); }
+    .w-time { color: var(--muted); font-size: 11px; white-space: nowrap; flex-shrink: 0; }
+    .w-dur  { color: var(--muted); font-size: 11px; white-space: nowrap; flex-shrink: 0; }
+    .w-spacer { flex: 1; }
+    .w-si-label { font-size: 9px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); flex-shrink: 0; }
+    .w-si { font-size: 14px; font-weight: 500; flex-shrink: 0; min-width: 36px; text-align: right; }
+    .btn-delete { background: none; border: 1px solid var(--border); color: var(--muted); border-radius: 4px; padding: 2px 8px; font-family: inherit; font-size: 10px; cursor: pointer; flex-shrink: 0; line-height: 1.6; }
+    .btn-delete:hover { border-color: var(--red); color: var(--red); background: none; opacity: 1; }
+
+    /* ── Expanded body ── */
+    .whisper-body { display: none; border-top: 1px solid var(--border); padding: 16px 14px; }
+    .whisper-body.open { display: block; }
+    .section-label { font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); margin-bottom: 10px; margin-top: 16px; border-left: 2px solid rgba(123,111,255,0.45); padding-left: 7px; }
+    .section-label:first-child { margin-top: 0; }
+    .fp-sublabel { font-size: 9px; letter-spacing: 0.08em; color: var(--muted); margin-bottom: 3px; display: flex; align-items: center; gap: 4px; }
+
+    /* ── Sensuality score block ── */
+    .si-block { display: flex; align-items: center; gap: 20px; background: var(--bg); border-radius: 6px; padding: 14px 16px; margin-bottom: 16px; }
+    .si-score { font-size: 40px; font-weight: 300; letter-spacing: -0.02em; line-height: 1; flex-shrink: 0; min-width: 72px; }
+    .si-right { flex: 1; min-width: 0; }
+    .si-label { font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); margin-bottom: 8px; }
+    .si-partial { font-size: 10px; color: var(--muted); margin-top: 5px; font-style: italic; }
+
+    /* ── Feature bars ── */
+    .feat-row { display: flex; align-items: center; gap: 8px; margin-bottom: 7px; }
+    .feat-name { width: 88px; font-size: 11px; color: var(--muted); flex-shrink: 0; }
+    .feat-track { flex: 1; height: 5px; background: var(--border); border-radius: 3px; overflow: hidden; min-width: 60px; }
+    .feat-fill { height: 100%; border-radius: 3px; }
+    .feat-val { width: 34px; text-align: right; font-size: 11px; color: var(--text); flex-shrink: 0; }
+    .feat-raw { font-size: 10px; color: var(--muted); flex-shrink: 0; white-space: nowrap; min-width: 80px; }
+    .src-badge { font-size: 9px; padding: 1px 6px; border-radius: 3px; flex-shrink: 0; white-space: nowrap; }
+
+    /* ── Secondary raw features ── */
+    .raw-pills { display: flex; flex-wrap: wrap; gap: 6px; }
+    .raw-pill { font-size: 10px; color: var(--muted); background: var(--bg); border: 1px solid var(--border); border-radius: 4px; padding: 2px 8px; white-space: nowrap; }
+    .raw-pill span { color: var(--text); }
+
+    /* ── Audio visualizations ── */
+    .vis-wrap { display: flex; flex-direction: column; gap: 6px; }
+    .wave-canvas { width: 100%; height: 56px; border-radius: 4px; background: var(--bg); display: block; }
+    .spect-canvas { width: 100%; height: 128px; border-radius: 4px; background: var(--bg); display: block; }
+    audio { width: 100%; height: 32px; margin-top: 4px; accent-color: var(--accent); display: block; }
+
+
+
+    /* ── Transcript ── */
+    .w-transcript { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; font-style: italic; color: var(--muted); padding: 0 4px; }
+    .w-transcript.has-text { color: var(--text); opacity: 0.75; }
+    .transcript-block { font-size: 13px; line-height: 1.65; color: var(--text); padding: 10px 12px; background: var(--bg); border-radius: 4px; white-space: pre-wrap; }
+
+    /* ── JSON toggle ── */
+    .json-toggle { background: none; border: 1px solid var(--border); color: var(--muted); border-radius: 4px; padding: 3px 10px; font-family: inherit; font-size: 10px; cursor: pointer; margin-top: 4px; }
+    .json-toggle:hover { color: var(--text); border-color: var(--muted); background: none; opacity: 1; }
+    .json-block { display: none; margin-top: 8px; }
+    .json-block.open { display: block; }
+    pre { background: var(--bg); border-radius: 4px; padding: 12px; font-size: 11px; overflow-x: auto; color: var(--text); white-space: pre-wrap; word-break: break-word; }
+
+    .empty-state { color: var(--muted); padding: 24px; text-align: center; }
+    .footer { font-size: 11px; color: var(--muted); margin-top: 12px; }
+
+    /* ── Fingerprint card ── */
+    .fp-preview { display: flex; justify-content: center; padding: 10px 0 14px; }
+    .fp-swatch  { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; vertical-align: middle; flex-shrink: 0; }
+    .fp-var-row { display: flex; align-items: center; gap: 8px; margin-bottom: 9px; }
+    .fp-var-label { width: 80px; font-size: 10px; color: var(--muted); display: flex; align-items: center; letter-spacing: 0.06em; flex-shrink: 0; }
+    .fp-var-slider { flex: 1; min-width: 0; accent-color: var(--accent); }
+    .fp-var-val { width: 36px; font-size: 10px; text-align: right; color: var(--text); flex-shrink: 0; }
+  </style>
+</head>
+<body>
+
+<div class="header">
+  <h1>WHISPER</h1>
+  <div class="dot" id="dot"></div>
+  <span class="status-label" id="statusLabel">connecting…</span>
+  <a href="/umap" style="margin-left:auto;font-size:11px;color:var(--muted);text-decoration:none" title="Feature space map">field map →</a>
+  <a href="/gallery" style="margin-left:16px;font-size:11px;color:var(--muted);text-decoration:none" title="Gallery display">gallery →</a>
+</div>
+
+<div class="layout">
+  <div>
+    <div class="card">
+      <h2>System</h2>
+      <div id="statRows"><div class="stat-row"><span class="stat-label">status</span><span class="stat-value">—</span></div></div>
+      <div class="stat-row" style="margin-top:4px"><span class="stat-label">port</span><span class="stat-value" id="cfgPort">—</span></div>
+    </div>
+
+    <div class="card">
+      <h2>Gallery</h2>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <div class="field" style="margin-bottom:0">
+          <label>Columns</label>
+          <input type="number" id="galleryCols" min="1" max="12">
+        </div>
+        <div class="field" style="margin-bottom:0">
+          <label>Rows</label>
+          <input type="number" id="galleryRows" min="1" max="8">
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px">
+        <div class="field" style="margin-bottom:0">
+          <label>Theme</label>
+          <select id="galleryTheme">
+            <option value="dark">Dark</option>
+            <option value="light">Light</option>
+          </select>
+        </div>
+        <div class="field" style="margin-bottom:0">
+          <label>Max whispers</label>
+          <input type="number" id="galleryMax" min="1" max="64">
+        </div>
+      </div>
+      <div class="field" style="margin-top:10px">
+        <label>Parade speed (seconds)</label>
+        <input type="number" id="gallerySpeed" min="2" max="60">
+        <div class="hint">Pause between re-blooms.</div>
+      </div>
+      <div class="field" style="margin-top:10px">
+        <label>Font scale — <span id="galleryFontScale_v">1.0</span>×</label>
+        <input type="range" id="galleryFontScale" min="0.5" max="4.0" step="0.05" style="width:100%" oninput="document.getElementById('galleryFontScale_v').textContent=parseFloat(this.value).toFixed(2)">
+        <div class="hint">Scales all gallery text (labels, phrases, title, text card). Increase for LED / projection screens.</div>
+      </div>
+      <div class="row">
+        <button onclick="saveGallery()">Save gallery</button>
+        <span class="flash" id="galleryFlash">Saved</span>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Fingerprint</h2>
+      <div class="fp-preview">
+        <canvas id="fpPreviewCanvas" width="200" height="200" style="width:200px;height:200px;display:block"></canvas>
+      </div>
+
+      <!-- Variable sizes: 2×2 grid -->
+      <div class="section-label" style="margin-top:0">Variable sizes</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px 14px;margin-bottom:12px">
+        <div>
+          <div class="fp-sublabel"><span class="fp-swatch" style="background:#FF2D8E"></span>breathiness</div>
+          <div class="fp-var-row" style="margin:0">
+            <input type="range" class="fp-var-slider" id="fp_breathinessSizeScale" min="0.2" max="4.0" step="0.05">
+            <span class="fp-var-val" id="fp_breathinessSizeScale_v">1.0×</span>
+          </div>
+        </div>
+        <div>
+          <div class="fp-sublabel"><span class="fp-swatch" style="background:#8A2BE2"></span>darkness</div>
+          <div class="fp-var-row" style="margin:0">
+            <input type="range" class="fp-var-slider" id="fp_darknessSizeScale" min="0.2" max="4.0" step="0.05">
+            <span class="fp-var-val" id="fp_darknessSizeScale_v">1.0×</span>
+          </div>
+        </div>
+        <div>
+          <div class="fp-sublabel"><span class="fp-swatch" style="background:#FFAE00"></span>softness</div>
+          <div class="fp-var-row" style="margin:0">
+            <input type="range" class="fp-var-slider" id="fp_softnessSizeScale" min="0.2" max="4.0" step="0.05">
+            <span class="fp-var-val" id="fp_softnessSizeScale_v">1.0×</span>
+          </div>
+        </div>
+        <div>
+          <div class="fp-sublabel"><span class="fp-swatch" style="background:#FF5070"></span>pitch low</div>
+          <div class="fp-var-row" style="margin:0">
+            <input type="range" class="fp-var-slider" id="fp_pitchLownessSizeScale" min="0.2" max="4.0" step="0.05">
+            <span class="fp-var-val" id="fp_pitchLownessSizeScale_v">1.0×</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Layout: 2-col -->
+      <div class="section-label">Layout</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px 14px;margin-bottom:12px">
+        <div>
+          <div class="fp-sublabel">position spread</div>
+          <div class="fp-var-row" style="margin:0">
+            <input type="range" class="fp-var-slider" id="fp_positionSpread" min="0.05" max="1.5" step="0.05">
+            <span class="fp-var-val" id="fp_positionSpread_v">0.55</span>
+          </div>
+        </div>
+        <div>
+          <div class="fp-sublabel">orbit spread</div>
+          <div class="fp-var-row" style="margin:0">
+            <input type="range" class="fp-var-slider" id="fp_orbitSpread" min="0" max="3.0" step="0.05">
+            <span class="fp-var-val" id="fp_orbitSpread_v">0.80</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Animation phases -->
+      <div class="section-label">Animation phases</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+        <div class="field" style="margin-bottom:0">
+          <label>FORMING (ms)</label>
+          <input type="number" id="fp_formingMs" min="200" max="8000" step="100">
+        </div>
+        <div class="field" style="margin-bottom:0">
+          <label>SETTLING (ms)</label>
+          <input type="number" id="fp_settlingMs" min="200" max="6000" step="100">
+        </div>
+      </div>
+      <div class="fp-var-row">
+        <span class="fp-var-label">BREATHE</span>
+        <input type="range" class="fp-var-slider" id="fp_breatheStrength" min="0" max="4.0" step="0.05">
+        <span class="fp-var-val" id="fp_breatheStrength_v">1.0</span>
+      </div>
+
+      <!-- Accent dots -->
+      <div class="section-label">Accent dots</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+        <div class="field" style="margin-bottom:0">
+          <label>Count</label>
+          <input type="number" id="fp_accentDotCount" min="0" max="12">
+        </div>
+        <div class="field" style="margin-bottom:0">
+          <label>Max size (px)</label>
+          <input type="number" id="fp_accentDotMaxSize" min="5" max="120">
+        </div>
+      </div>
+
+      <!-- Particles & satellites -->
+      <div class="section-label">Particles &amp; satellites</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+        <div class="field" style="margin-bottom:0">
+          <label>Particle base</label>
+          <input type="number" id="fp_particleBase" min="0" max="60">
+          <div class="hint">+ up to 15 from duration</div>
+        </div>
+        <div class="field" style="margin-bottom:0">
+          <label>Satellite max</label>
+          <input type="number" id="fp_satelliteMax" min="0" max="14">
+          <div class="hint">breathiness → count</div>
+        </div>
+      </div>
+      <div class="fp-var-row">
+        <span class="fp-var-label">fantasy ×</span>
+        <input type="range" class="fp-var-slider" id="fp_particleFantasyScale" min="0" max="5.0" step="0.05">
+        <span class="fp-var-val" id="fp_particleFantasyScale_v">0.8</span>
+      </div>
+      <div class="hint" style="margin-bottom:10px">fantasy variable multiplies particle count</div>
+
+      <!-- Edge fade -->
+      <div class="section-label">Edge fade</div>
+      <div class="fp-var-row">
+        <span class="fp-var-label">inner stop</span>
+        <input type="range" class="fp-var-slider" id="fp_maskInner" min="10" max="88" step="1">
+        <span class="fp-var-val" id="fp_maskInner_v">55%</span>
+      </div>
+      <div class="fp-var-row">
+        <span class="fp-var-label">outer stop</span>
+        <input type="range" class="fp-var-slider" id="fp_maskOuter" min="40" max="100" step="1">
+        <span class="fp-var-val" id="fp_maskOuter_v">92%</span>
+      </div>
+
+      <div class="row">
+        <button onclick="saveFingerprintConfig()">Save fingerprint</button>
+        <span class="flash" id="fpFlash">Saved</span>
+      </div>
+    </div>
+  </div>
+
+  <div>
+    <h2>Whispers <span id="whisperCount" style="color:var(--text)"></span></h2>
+    <div class="overview" id="overview"><span class="ov-empty">no data yet</span></div>
+    <div class="whisper-list" id="whisperList"></div>
+    <div class="footer" id="footer"></div>
+  </div>
+</div>
+
+<script src="/public/fingerprint.js"></script>
+<script>
+  /* ── State ─────────────────────────────────────────────────────────────── */
+  let whisperData = [];
+  let expanded    = new Set();
+  let drawnAudio  = new Set(); // ids where canvas drawing was triggered
+
+  /* ── Lookup tables ──────────────────────────────────────────────────────── */
+  const SI_COLORS = {
+    breathiness:'#67e8f9', darkness:'#a78bfa', softness:'#86efac',
+    slowness:'#fcd34d', pitchLowness:'#fb923c', pitchSteadiness:'#f472b6',
+  };
+  const SI_LABELS = {
+    breathiness:'breathiness', darkness:'darkness', softness:'softness',
+    slowness:'slowness', pitchLowness:'pitch low', pitchSteadiness:'pitch steady',
+  };
+
+  // For each sensuality component: which raw feature feeds it, where from
+  const SI_SOURCE = {
+    breathiness: {
+      src: f => f.hnr != null ? 'praat' : 'browser',
+      raw: f => f.hnr != null
+        ? `${f.hnr.toFixed(1)} dB HNR`
+        : f.noisiness != null ? `${f.noisiness.toFixed(3)} zcr` : null,
+    },
+    darkness: {
+      src: f => f.spectralCentroid != null ? 'librosa' : 'browser',
+      raw: f => f.spectralCentroid != null
+        ? `${Math.round(f.spectralCentroid).toLocaleString()} Hz`
+        : f.brightness != null ? `${f.brightness.toFixed(3)} bright` : null,
+    },
+    softness: {
+      src: () => 'browser',
+      raw: f => f.amplitude != null ? `${f.amplitude.toFixed(3)} rms` : null,
+    },
+    slowness: {
+      src: () => 'librosa',
+      raw: f => f.speechRate != null ? `${f.speechRate.toFixed(1)} syl/s` : null,
+    },
+    pitchLowness: {
+      src: () => 'praat',
+      raw: f => f.f0Mean != null ? `${Math.round(f.f0Mean)} Hz` : null,
+    },
+    pitchSteadiness: {
+      src: () => 'praat',
+      raw: f => f.f0Range != null ? `±${Math.round(f.f0Range / 2)} Hz` : null,
+    },
+  };
+
+  const SRC_STYLE = {
+    praat:   'background:rgba(103,232,249,0.12);color:#67e8f9',
+    librosa: 'background:rgba(123,111,255,0.15);color:#a78bfa',
+    max:     'background:rgba(245,158,11,0.12);color:#f59e0b',
+    browser: 'background:rgba(85,85,104,0.15);color:#555568',
+  };
+
+  /* ── Helpers ─────────────────────────────────────────────────────────────── */
+  function timeAgo(iso) {
+    const s = (Date.now() - new Date(iso)) / 1000;
+    if (s < 60)   return `${Math.round(s)}s ago`;
+    if (s < 3600) return `${Math.round(s / 60)}m ago`;
+    if (s < 86400) return `${Math.round(s / 3600)}h ago`;
+    return new Date(iso).toLocaleDateString();
+  }
+
+  function formatDate(iso) {
+    if (!iso) return '—';
+    const d = new Date(iso);
+    return d.toLocaleDateString([], { month: 'short', day: 'numeric' })
+      + ' ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  }
+
+  function siScoreColor(score) {
+    if (score >= 0.66) return '#fb7185';
+    if (score >= 0.33) return '#c084fc';
+    return '#7b6fff';
+  }
+
+  function srcBadge(src) {
+    if (!src) return '';
+    return `<span class="src-badge" style="${SRC_STYLE[src] || ''}">${src}</span>`;
+  }
+
+  /* ── Rendering ───────────────────────────────────────────────────────────── */
+  function renderOverview(whispers) {
+    const ov = document.getElementById('overview');
+    if (!whispers.length) { ov.innerHTML = '<span class="ov-empty">no data yet</span>'; return; }
+    const sorted = whispers.slice().reverse(); // oldest → newest
+    ov.innerHTML = sorted.map(w => {
+      const amp   = w.features?.amplitude ?? 0;
+      const si    = w.sensuality?.score;
+      const color = si != null ? siScoreColor(si) : '#555568';
+      const h     = Math.max(6, Math.round(amp * 100));
+      const tip   = [w.llm?.rephrased || w.transcript || '—', si != null ? `si ${si.toFixed(2)}` : '', `amp ${amp.toFixed(2)}`].filter(Boolean).join(' · ');
+      return `<div class="ov-bar" style="height:${h}%;background:${color}" title="${tip}"></div>`;
+    }).join('');
+  }
+
+  function renderSensuality(si) {
+    if (!si) return '';
+    const color = siScoreColor(si.score);
+    const bars = Object.entries(si.components).map(([k, v]) => `
+      <div class="feat-row" style="margin-bottom:4px">
+        <span class="feat-name" style="width:80px;font-size:10px">${SI_LABELS[k] || k}</span>
+        <div class="feat-track"><div class="feat-fill" style="width:${(v*100).toFixed(1)}%;background:${SI_COLORS[k]||'#7b6fff'}"></div></div>
+        <span class="feat-val" style="font-size:10px;color:var(--muted)">${v.toFixed(2)}</span>
+      </div>`).join('');
+    return `
+      <div class="si-block">
+        <div class="si-score" style="color:${color}">${si.score.toFixed(2)}</div>
+        <div class="si-right">
+          <div class="si-label">Sensuality Index</div>
+          ${bars}
+          ${si.partial ? '<div class="si-partial">partial — missing pitch, speech rate, or spectral data</div>' : ''}
+        </div>
+      </div>`;
+  }
+
+  function renderFeatures(w) {
+    const f  = w.features  || {};
+    const si = w.sensuality || {};
+    const components = si.components || {};
+
+    // Primary: one bar per sensuality component, showing raw source + badge
+    const primary = Object.entries(SI_SOURCE).map(([k, def]) => {
+      const norm = components[k];
+      if (norm == null) return '';          // component not in record yet
+      const color = SI_COLORS[k] || '#7b6fff';
+      const raw   = def.raw(f);
+      const src   = def.src(f);
+      return `
+        <div class="feat-row">
+          <span class="feat-name">${SI_LABELS[k]}</span>
+          <div class="feat-track"><div class="feat-fill" style="width:${(norm*100).toFixed(1)}%;background:${color}"></div></div>
+          <span class="feat-val">${norm.toFixed(2)}</span>
+          ${raw ? `<span class="feat-raw">${raw}</span>` : '<span class="feat-raw"></span>'}
+          ${srcBadge(src)}
+        </div>`;
+    }).join('');
+
+    // Secondary: other raw numbers as small pills
+    const pills = [
+      f.voicedFraction != null && `voiced <span>${(f.voicedFraction * 100).toFixed(0)}%</span>`,
+      f.jitter         != null && `jitter <span>${f.jitter.toFixed(4)}</span>`,
+      f.spectralRolloff!= null && `rolloff <span>${Math.round(f.spectralRolloff).toLocaleString()} Hz</span>`,
+      f.tremble        != null && `tremble <span>${f.tremble.toFixed(3)}</span>`,
+      f.peak           != null && `peak <span>${f.peak.toFixed(3)}</span>`,
+      (f.duration || f.durationLibrosa) != null && `duration <span>${(f.durationLibrosa ?? f.duration).toFixed(2)}s</span>`,
+    ].filter(Boolean).map(t => `<div class="raw-pill">${t}</div>`).join('');
+
+    const hasFeatures = primary.trim() || pills.trim();
+    if (!hasFeatures) return '';
+
+    return `
+      <div class="section-label">Sensuality Features</div>
+      <div style="max-width:50%">
+        ${primary || '<div style="color:var(--muted);font-size:11px">No features yet — analysis pending.</div>'}
+      </div>
+      ${pills ? `<div class="raw-pills" style="margin-top:10px">${pills}</div>` : ''}`;
+  }
+
+  function esc(s) {
+    return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  const SEM_LABELS = {
+    sensory:'sensory', relational:'relational', taboo:'taboo', tenderness:'tenderness',
+    fantasy:'fantasy', identity:'identity', longing:'longing', unspeakable:'unspeakable',
+  };
+  const SEM_COLORS = {
+    sensory:'#f472b6', relational:'#a78bfa', taboo:'#f87171', tenderness:'#86efac',
+    fantasy:'#67e8f9', identity:'#fcd34d', longing:'#fb923c', unspeakable:'#c084fc',
+  };
+
+  function renderSemantics(w) {
+    const sem = w.llm?.semantics;
+    if (!sem || !Object.keys(sem).length) return '';
+    const bars = Object.entries(SEM_LABELS).map(([k, label]) => {
+      const v = sem[k];
+      if (v == null) return '';
+      return `
+        <div class="feat-row">
+          <span class="feat-name">${label}</span>
+          <div class="feat-track"><div class="feat-fill" style="width:${(v*100).toFixed(1)}%;background:${SEM_COLORS[k]}"></div></div>
+          <span class="feat-val">${v.toFixed(2)}</span>
+        </div>`;
+    }).join('');
+    return `
+      <div class="section-label" style="margin-top:16px">Semantic Classification</div>
+      <div style="max-width:50%">${bars}</div>`;
+  }
+
+  function renderWhisperBody(w) {
+    const f = w.features || {};
+    const rephrased = w.llm?.rephrased?.trim();
+    const original  = w.transcript?.trim();
+    const transcriptHtml = (rephrased || original) ? `
+      ${rephrased ? `<div class="section-label">Rephrased</div><div class="transcript-block" style="color:#c084fc">${esc(rephrased)}</div>` : ''}
+      ${original  ? `<div class="section-label" style="margin-top:${rephrased ? '12px' : '0'}">Original transcript</div><div class="transcript-block" style="opacity:0.6">${esc(original)}</div>` : ''}
+    ` : '';
+
+    // Audio section with canvases
+    const audioFile           = w.audioFile;
+    const whisperizedFile     = w.whisperizedFile;
+    const generatedWhisperFile = w.generatedWhisperFile;
+    let audioHtml = '';
+    if (audioFile || whisperizedFile || generatedWhisperFile) {
+      const filename  = audioFile            ? audioFile.split('/').pop()            : null;
+      const wFilename = whisperizedFile      ? whisperizedFile.split('/').pop()      : null;
+      const gFilename = generatedWhisperFile ? generatedWhisperFile.split('/').pop() : null;
+      const vocalScoreHtml = w.vocalScore
+        ? `<div style="font-size:10px;color:var(--muted);margin-top:8px;letter-spacing:.05em;font-style:italic;opacity:.7">${w.vocalScore}</div>`
+        : '';
+      audioHtml = `
+        <div class="section-label">Waveform &amp; Spectrogram</div>
+        <div class="vis-wrap">
+          <canvas id="wave-${w.id}" class="wave-canvas" width="900" height="56"></canvas>
+          <canvas id="spect-${w.id}" class="spect-canvas" width="900" height="128"></canvas>
+          ${filename  ? `<div style="font-size:10px;color:var(--muted);margin-top:6px;letter-spacing:.1em;text-transform:uppercase">original</div><audio controls src="/recordings/${filename}"></audio>` : ''}
+          ${wFilename ? `<div style="font-size:10px;color:var(--muted);margin-top:8px;letter-spacing:.1em;text-transform:uppercase">lpc whisperized</div><audio controls src="/recordings/${wFilename}"></audio>` : ''}
+          ${gFilename ? `<div style="font-size:10px;color:#a78bfa;margin-top:12px;letter-spacing:.1em;text-transform:uppercase">generated whisper (elevenlabs)</div>${vocalScoreHtml}<audio controls src="/recordings/${gFilename}" style="margin-top:4px"></audio>` : ''}
+        </div>`;
+    }
+
+    return `
+      ${transcriptHtml}
+      ${renderFeatures(w)}
+      ${renderSemantics(w)}
+      ${audioHtml}
+      <div style="margin-top:16px">
+        <button class="json-toggle" onclick="toggleJson('${w.id}')">show raw JSON</button>
+        <div class="json-block" id="json-${w.id}">
+          <pre>${JSON.stringify(w, null, 2)}</pre>
+        </div>
+      </div>`;
+  }
+
+  function renderWhispers(whispers) {
+    document.getElementById('whisperCount').textContent = `(${whispers.length})`;
+    renderOverview(whispers);
+    const list = document.getElementById('whisperList');
+    if (!whispers.length) { list.innerHTML = '<div class="empty-state">No whispers yet.</div>'; return; }
+
+    // Snapshot canvas pixels for expanded items before the DOM rebuild destroys them
+    const savedCanvasData = {};
+    expanded.forEach(id => {
+      if (!drawnAudio.has(id)) return;
+      const waveEl  = document.getElementById(`wave-${id}`);
+      const spectEl = document.getElementById(`spect-${id}`);
+      if (waveEl && spectEl) {
+        savedCanvasData[id] = {
+          wave:  waveEl.getContext('2d').getImageData(0, 0, waveEl.width, waveEl.height),
+          spect: spectEl.getContext('2d').getImageData(0, 0, spectEl.width, spectEl.height),
+        };
+      }
+    });
+
+    // Canvases are about to be destroyed by innerHTML rebuild — reset drawn state
+    drawnAudio.clear();
+
+    list.innerHTML = whispers.map(w => {
+      const si  = w.sensuality?.score;
+      const dur = w.features?.durationLibrosa ?? w.features?.duration;
+      const isOpen = expanded.has(w.id);
+      return `
+        <div class="whisper-item">
+          <div class="whisper-head" onclick="toggle('${w.id}')">
+            <span class="w-time">${formatDate(w.createdAt)}</span>
+            <span class="w-dur">${dur != null ? `${Math.round(dur)}s` : '—'}</span>
+            <span class="w-transcript${(w.llm?.rephrased || w.transcript?.trim()) ? ' has-text' : ''}">${esc(w.llm?.rephrased || w.transcript?.trim() || 'wordless whisper')}</span>
+            <span class="w-si-label">si</span>
+            <span class="w-si" style="color:${si != null ? siScoreColor(si) : 'var(--muted)'}">${si != null ? si.toFixed(2) : '—'}</span>
+            <button class="btn-delete" onclick="event.stopPropagation();deleteWhisper('${w.id}')">del</button>
+          </div>
+          <div class="whisper-body ${isOpen ? 'open' : ''}" id="body-${w.id}">
+            ${isOpen ? renderWhisperBody(w) : ''}
+          </div>
+        </div>`;
+    }).join('');
+
+    // Restore canvas pixels or draw fresh for expanded items
+    whispers.forEach(w => {
+      if (!expanded.has(w.id)) return;
+      if (savedCanvasData[w.id]) {
+        // Blit saved pixels back — no re-fetch, no flicker
+        const waveEl  = document.getElementById(`wave-${w.id}`);
+        const spectEl = document.getElementById(`spect-${w.id}`);
+        if (waveEl && spectEl) {
+          waveEl.getContext('2d').putImageData(savedCanvasData[w.id].wave, 0, 0);
+          spectEl.getContext('2d').putImageData(savedCanvasData[w.id].spect, 0, 0);
+          drawnAudio.add(w.id);
+        }
+      } else if (w.audioFile) {
+        drawnAudio.add(w.id);
+        const filename = w.audioFile.split('/').pop();
+        setTimeout(() => drawAudioVisuals(
+          `/recordings/${filename}`,
+          document.getElementById(`wave-${w.id}`),
+          document.getElementById(`spect-${w.id}`)
+        ), 0);
+      }
+    });
+  }
+
+  /* ── Interactions ────────────────────────────────────────────────────────── */
+  function toggle(id) {
+    const body = document.getElementById(`body-${id}`);
+    if (!body) return;
+    if (expanded.has(id)) {
+      expanded.delete(id);
+      body.classList.remove('open');
+    } else {
+      expanded.add(id);
+      const w = whisperData.find(x => x.id === id);
+      if (w && !body.innerHTML.trim()) body.innerHTML = renderWhisperBody(w);
+      body.classList.add('open');
+      // Draw audio visuals after DOM settles
+      if (w?.audioFile && !drawnAudio.has(id)) {
+        drawnAudio.add(id);
+        const filename = w.audioFile.split('/').pop();
+        setTimeout(() => drawAudioVisuals(
+          `/recordings/${filename}`,
+          document.getElementById(`wave-${id}`),
+          document.getElementById(`spect-${id}`)
+        ), 0);
+      }
+    }
+  }
+
+  function toggleJson(id) {
+    const block = document.getElementById(`json-${id}`);
+    if (!block) return;
+    block.classList.toggle('open');
+    block.previousElementSibling.textContent = block.classList.contains('open') ? 'hide raw JSON' : 'show raw JSON';
+  }
+
+  async function deleteWhisper(id) {
+    if (!confirm('Delete this whisper and its audio file?')) return;
+    await fetch(`/whispers/${id}`, { method: 'DELETE' });
+    expanded.delete(id);
+    drawnAudio.delete(id);
+    await fetchWhispers();
+  }
+
+  /* ── Audio visualizations ────────────────────────────────────────────────── */
+
+  // Iterative Cooley-Tukey FFT (in-place, power-of-2 length)
+  function fftInPlace(re, im) {
+    const n = re.length;
+    for (let i = 1, j = 0; i < n; i++) {
+      let bit = n >> 1;
+      for (; j & bit; bit >>= 1) j ^= bit;
+      j ^= bit;
+      if (i < j) {
+        [re[i], re[j]] = [re[j], re[i]];
+        [im[i], im[j]] = [im[j], im[i]];
+      }
+    }
+    for (let len = 2; len <= n; len <<= 1) {
+      const ang = -2 * Math.PI / len;
+      const wR = Math.cos(ang), wI = Math.sin(ang);
+      for (let i = 0; i < n; i += len) {
+        let cR = 1, cI = 0;
+        for (let k = 0; k < len >> 1; k++) {
+          const half = len >> 1;
+          const tR = cR * re[i+k+half] - cI * im[i+k+half];
+          const tI = cR * im[i+k+half] + cI * re[i+k+half];
+          re[i+k+half] = re[i+k] - tR;
+          im[i+k+half] = im[i+k] - tI;
+          re[i+k] += tR;
+          im[i+k] += tI;
+          const ncR = cR * wR - cI * wI;
+          cI = cR * wI + cI * wR;
+          cR = ncR;
+        }
+      }
+    }
+  }
+
+  // Spectrogram color: black → deep purple → violet → cyan → white
+  function spectColor(t) {
+    if (t < 0.22) {
+      const s = t / 0.22;
+      return [Math.round(10 + 20*s), Math.round(8 + 8*s), Math.round(14 + 46*s)];
+    } else if (t < 0.52) {
+      const s = (t - 0.22) / 0.3;
+      return [Math.round(30 + 93*s), Math.round(16 + 14*s), Math.round(60 + 195*s)];
+    } else if (t < 0.78) {
+      const s = (t - 0.52) / 0.26;
+      return [Math.round(123 - 56*s), Math.round(30 + 202*s), Math.round(255)];
+    } else {
+      const s = (t - 0.78) / 0.22;
+      return [Math.round(67 + 188*s), Math.round(232 + 23*s), Math.round(255)];
+    }
+  }
+
+  function drawWaveform(canvas, samples) {
+    if (!canvas) return;
+    const w = canvas.width, h = canvas.height;
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#0a0a0f';
+    ctx.fillRect(0, 0, w, h);
+    const mid = h / 2;
+    // Center line
+    ctx.fillStyle = 'rgba(37,37,48,1)';
+    ctx.fillRect(0, mid, w, 1);
+    // Waveform bars
+    ctx.fillStyle = 'rgba(123,111,255,0.55)';
+    for (let x = 0; x < w; x++) {
+      const s0 = Math.floor(x * samples.length / w);
+      const s1 = Math.floor((x + 1) * samples.length / w);
+      let mn = 0, mx = 0;
+      for (let s = s0; s < s1 && s < samples.length; s++) {
+        if (samples[s] < mn) mn = samples[s];
+        if (samples[s] > mx) mx = samples[s];
+      }
+      const y1 = mid + mn * mid * 0.92;
+      const y2 = mid + mx * mid * 0.92;
+      ctx.fillRect(x, y1, 1, Math.max(1, y2 - y1));
+    }
+  }
+
+  function drawSpectrogram(canvas, samples, sr) {
+    if (!canvas) return;
+    const FFT = 512, HOP = 128;
+    const w = canvas.width, h = canvas.height;
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#0a0a0f';
+    ctx.fillRect(0, 0, w, h);
+
+    // Hann window
+    const win = new Float32Array(FFT);
+    for (let i = 0; i < FFT; i++) win[i] = 0.5 * (1 - Math.cos(2 * Math.PI * i / (FFT - 1)));
+
+    // Cap display at 5 kHz (enough for voice)
+    const maxHz  = Math.min(5000, sr / 2);
+    const maxBin = Math.round(maxHz * FFT / sr);
+
+    const numFrames = Math.max(1, Math.floor((samples.length - FFT) / HOP));
+    const allMags = new Array(numFrames);
+    let globalMax = 1e-10;
+
+    for (let f = 0; f < numFrames; f++) {
+      const off = f * HOP;
+      const re = new Float32Array(FFT), im = new Float32Array(FFT);
+      for (let i = 0; i < FFT; i++) re[i] = (samples[off + i] || 0) * win[i];
+      fftInPlace(re, im);
+      const mag = new Float32Array(maxBin);
+      for (let i = 0; i < maxBin; i++) {
+        mag[i] = Math.sqrt(re[i]*re[i] + im[i]*im[i]);
+        if (mag[i] > globalMax) globalMax = mag[i];
+      }
+      allMags[f] = mag;
+    }
+
+    // Paint pixels
+    const img = ctx.createImageData(w, h);
+    const px  = img.data;
+    for (let x = 0; x < w; x++) {
+      const fi  = Math.min(numFrames - 1, Math.floor(x * numFrames / w));
+      const mag = allMags[fi];
+      for (let y = 0; y < h; y++) {
+        const bin  = Math.floor((h - 1 - y) * maxBin / h);
+        const norm = mag[bin] / globalMax;
+        const t    = Math.log(1 + norm * 9) / Math.log(10);
+        const [r, g, b] = spectColor(t);
+        const i = (y * w + x) * 4;
+        px[i] = r; px[i+1] = g; px[i+2] = b; px[i+3] = 255;
+      }
+    }
+    ctx.putImageData(img, 0, 0);
+
+    // Frequency gridlines
+    ctx.font = '9px monospace';
+    [1000, 2000, 3000, 4000].forEach(hz => {
+      if (hz >= maxHz) return;
+      const y = Math.round(h - hz / maxHz * h);
+      ctx.fillStyle = 'rgba(37,37,48,0.7)';
+      ctx.fillRect(0, y, w, 1);
+      ctx.fillStyle = 'rgba(85,85,104,0.9)';
+      ctx.fillText(`${hz/1000}k`, 4, y - 2);
+    });
+  }
+
+  async function drawAudioVisuals(src, waveEl, spectEl) {
+    if (!waveEl || !spectEl) return;
+
+    // Loading state
+    [waveEl, spectEl].forEach(c => {
+      const ctx = c.getContext('2d');
+      ctx.fillStyle = '#0a0a0f';
+      ctx.fillRect(0, 0, c.width, c.height);
+      ctx.fillStyle = '#555568';
+      ctx.font = '10px monospace';
+      ctx.fillText('loading…', 8, c.height / 2 + 4);
+    });
+
+    try {
+      const resp      = await fetch(src);
+      if (!resp.ok) throw new Error('fetch failed');
+      const arrayBuf  = await resp.arrayBuffer();
+      const audioCtx  = new AudioContext();
+      const audioBuf  = await audioCtx.decodeAudioData(arrayBuf);
+      audioCtx.close();
+      const samples   = audioBuf.getChannelData(0);
+      const sr        = audioBuf.sampleRate;
+      drawWaveform(waveEl, samples);
+      drawSpectrogram(spectEl, samples, sr);
+    } catch {
+      const ctx = waveEl.getContext('2d');
+      ctx.fillStyle = '#0a0a0f';
+      ctx.fillRect(0, 0, waveEl.width, waveEl.height);
+      ctx.fillStyle = '#f87171';
+      ctx.font = '10px monospace';
+      ctx.fillText('could not load audio', 8, waveEl.height / 2 + 4);
+    }
+  }
+
+  /* ── Server / config ─────────────────────────────────────────────────────── */
+  async function fetchWhispers() {
+    try {
+      const res = await fetch('/whispers');
+      const d   = await res.json();
+      whisperData = d.whispers || [];
+      renderWhispers(whisperData);
+      document.getElementById('footer').textContent =
+        `Last updated ${new Date().toLocaleTimeString()} · auto-refreshes every 5s`;
+    } catch {}
+  }
+
+  async function fetchHealth() {
+    try {
+      const res = await fetch('/health');
+      const d   = await res.json();
+      document.getElementById('dot').className = 'dot ok';
+      document.getElementById('statusLabel').textContent = 'online';
+      document.getElementById('statRows').innerHTML = `
+        <div class="stat-row"><span class="stat-label">http</span><span class="stat-value">:${d.port || location.port || 3000}</span></div>`;
+    } catch {
+      document.getElementById('dot').className = 'dot err';
+      document.getElementById('statusLabel').textContent = 'offline';
+    }
+  }
+
+  async function fetchConfig() {
+    try {
+      const res = await fetch('/config');
+      const c   = await res.json();
+      document.getElementById('cfgPort').textContent = c.port ?? '';
+      document.getElementById('galleryCols').value  = c.galleryCols          ?? 8;
+      document.getElementById('galleryRows').value  = c.galleryRows          ?? 4;
+      document.getElementById('galleryTheme').value = c.galleryTheme         ?? 'dark';
+      document.getElementById('gallerySpeed').value = Math.round((c.galleryParadeInterval ?? 10000) / 1000);
+      document.getElementById('galleryMax').value   = c.galleryMaxWhispers   ?? 32;
+      const fScale = (c.galleryFontScale ?? 1.0).toFixed(2);
+      document.getElementById('galleryFontScale').value = fScale;
+      document.getElementById('galleryFontScale_v').textContent = fScale;
+
+      // Fingerprint config
+      const D = FP_CFG_DEFAULTS;
+      const fpSet = (id, val, suffix = '') => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.value = val;
+        const disp = document.getElementById(id + '_v');
+        if (disp) disp.textContent = val + suffix;
+      };
+      fpSet('fp_positionSpread',        (c.fp_positionSpread        ?? D.positionSpread).toFixed(2));
+      fpSet('fp_orbitSpread',           (c.fp_orbitSpread           ?? D.orbitSpread).toFixed(2));
+      fpSet('fp_breathinessSizeScale',  (c.fp_breathinessSizeScale  ?? D.breathinessSizeScale).toFixed(2),  '×');
+      fpSet('fp_darknessSizeScale',     (c.fp_darknessSizeScale     ?? D.darknessSizeScale).toFixed(2),     '×');
+      fpSet('fp_softnessSizeScale',     (c.fp_softnessSizeScale     ?? D.softnessSizeScale).toFixed(2),     '×');
+      fpSet('fp_pitchLownessSizeScale', (c.fp_pitchLownessSizeScale ?? D.pitchLownessSizeScale).toFixed(2), '×');
+      fpSet('fp_accentDotCount',        c.fp_accentDotCount        ?? D.accentDotCount);
+      fpSet('fp_accentDotMaxSize',      c.fp_accentDotMaxSize      ?? D.accentDotMaxSize);
+      fpSet('fp_particleBase',          c.fp_particleBase          ?? D.particleBase);
+      fpSet('fp_particleFantasyScale',  (c.fp_particleFantasyScale ?? D.particleFantasyScale).toFixed(2));
+      fpSet('fp_satelliteMax',          c.fp_satelliteMax          ?? D.satelliteMax);
+      fpSet('fp_formingMs',             c.fp_formingMs       ?? D.formingMs);
+      fpSet('fp_settlingMs',            c.fp_settlingMs      ?? D.settlingMs);
+      fpSet('fp_breatheStrength',       (c.fp_breatheStrength ?? D.breatheStrength).toFixed(2));
+      fpSet('fp_maskInner',             c.fp_maskInner ?? D.maskInner, '%');
+      fpSet('fp_maskOuter',             c.fp_maskOuter ?? D.maskOuter, '%');
+      refreshFpPreview();
+    } catch {}
+  }
+
+  async function saveGallery() {
+    try {
+      const body = {
+        galleryCols:           Number(document.getElementById('galleryCols').value),
+        galleryRows:           Number(document.getElementById('galleryRows').value),
+        galleryTheme:          document.getElementById('galleryTheme').value,
+        galleryParadeInterval: Number(document.getElementById('gallerySpeed').value) * 1000,
+        galleryMaxWhispers:    Number(document.getElementById('galleryMax').value),
+        galleryFontScale:      Number(document.getElementById('galleryFontScale').value),
+      };
+      await fetch('/config', { method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) });
+      const flash = document.getElementById('galleryFlash');
+      flash.classList.add('show');
+      setTimeout(() => flash.classList.remove('show'), 2000);
+    } catch {}
+  }
+
+  async function saveConfig() {
+    const body = {};
+    try {
+      await fetch('/config', { method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) });
+    } catch {}
+  }
+
+  /* ── Fingerprint preview ─────────────────────────────────────────────────── */
+  const FP_PREVIEW_PARAMS = {
+    breathiness: 0.75, darkness: 0.60, softness: 0.40, slowness: 0.35,
+    pitchLowness: 0.70, pitchSteadiness: 0.45, amplitude: 0.55, duration: 10,
+    sensory: 0.65, relational: 0.30, taboo: 0.20, tenderness: 0.45,
+    fantasy: 0.55, identity: 0.25, longing: 0.60, unspeakable: 0.15,
+    seed: 'admin-preview',
+  };
+
+  let fpPreviewRenderer = null;
+
+  function getFpConfigFromInputs() {
+    const v = id => document.getElementById(id);
+    return {
+      positionSpread:        parseFloat(v('fp_positionSpread').value),
+      orbitSpread:           parseFloat(v('fp_orbitSpread').value),
+      breathinessSizeScale:  parseFloat(v('fp_breathinessSizeScale').value),
+      darknessSizeScale:     parseFloat(v('fp_darknessSizeScale').value),
+      softnessSizeScale:     parseFloat(v('fp_softnessSizeScale').value),
+      pitchLownessSizeScale: parseFloat(v('fp_pitchLownessSizeScale').value),
+      accentDotCount:        parseInt(v('fp_accentDotCount').value)        || 0,
+      accentDotMaxSize:      parseInt(v('fp_accentDotMaxSize').value)      || 5,
+      particleBase:          parseInt(v('fp_particleBase').value)          || 0,
+      particleFantasyScale:  parseFloat(v('fp_particleFantasyScale').value),
+      satelliteMax:          parseInt(v('fp_satelliteMax').value)          || 0,
+      formingMs:             parseInt(v('fp_formingMs').value)         || 2500,
+      settlingMs:            parseInt(v('fp_settlingMs').value)        || 2000,
+      breatheStrength:       parseFloat(v('fp_breatheStrength').value),
+      maskInner:             parseInt(v('fp_maskInner').value)         || 55,
+      maskOuter:             parseInt(v('fp_maskOuter').value)         || 92,
+    };
+  }
+
+  function refreshFpPreview() {
+    const canvas = document.getElementById('fpPreviewCanvas');
+    if (!canvas || typeof FingerprintRenderer === 'undefined') return;
+    if (fpPreviewRenderer) { fpPreviewRenderer.stop(); fpPreviewRenderer = null; }
+    const cfg = getFpConfigFromInputs();
+    fpPreviewRenderer = new FingerprintRenderer(canvas, FP_PREVIEW_PARAMS, cfg);
+    fpPreviewRenderer.start();
+  }
+
+  function initFpControls() {
+    const sliders = [
+      ['fp_breathinessSizeScale',  'fp_breathinessSizeScale_v',  '×'],
+      ['fp_darknessSizeScale',     'fp_darknessSizeScale_v',     '×'],
+      ['fp_softnessSizeScale',     'fp_softnessSizeScale_v',     '×'],
+      ['fp_pitchLownessSizeScale', 'fp_pitchLownessSizeScale_v', '×'],
+      ['fp_positionSpread',        'fp_positionSpread_v',        ''],
+      ['fp_orbitSpread',           'fp_orbitSpread_v',           ''],
+      ['fp_breatheStrength',       'fp_breatheStrength_v',       ''],
+      ['fp_particleFantasyScale',  'fp_particleFantasyScale_v',  ''],
+      ['fp_maskInner',             'fp_maskInner_v',             '%'],
+      ['fp_maskOuter',             'fp_maskOuter_v',             '%'],
+    ];
+    for (const [inputId, dispId, suffix] of sliders) {
+      const input = document.getElementById(inputId);
+      const disp  = document.getElementById(dispId);
+      if (!input) continue;
+      input.addEventListener('input', () => {
+        if (disp) disp.textContent = input.value + suffix;
+        refreshFpPreview();
+      });
+    }
+    ['fp_formingMs', 'fp_settlingMs', 'fp_accentDotCount', 'fp_accentDotMaxSize',
+     'fp_particleBase', 'fp_satelliteMax'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.addEventListener('input', refreshFpPreview);
+    });
+  }
+
+  async function saveFingerprintConfig() {
+    try {
+      const cfg = getFpConfigFromInputs();
+      const body = {
+        fp_positionSpread:        cfg.positionSpread,
+        fp_orbitSpread:           cfg.orbitSpread,
+        fp_breathinessSizeScale:  cfg.breathinessSizeScale,
+        fp_darknessSizeScale:     cfg.darknessSizeScale,
+        fp_softnessSizeScale:     cfg.softnessSizeScale,
+        fp_pitchLownessSizeScale: cfg.pitchLownessSizeScale,
+        fp_accentDotCount:        cfg.accentDotCount,
+        fp_accentDotMaxSize:      cfg.accentDotMaxSize,
+        fp_particleBase:          cfg.particleBase,
+        fp_particleFantasyScale:  cfg.particleFantasyScale,
+        fp_satelliteMax:          cfg.satelliteMax,
+        fp_formingMs:             cfg.formingMs,
+        fp_settlingMs:            cfg.settlingMs,
+        fp_breatheStrength:       cfg.breatheStrength,
+        fp_maskInner:             cfg.maskInner,
+        fp_maskOuter:             cfg.maskOuter,
+      };
+      await fetch('/config', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+      const flash = document.getElementById('fpFlash');
+      flash.classList.add('show');
+      setTimeout(() => flash.classList.remove('show'), 2000);
+    } catch {}
+  }
+
+  async function init() {
+    initFpControls();
+    await Promise.all([fetchHealth(), fetchConfig(), fetchWhispers()]);
+    setInterval(fetchWhispers, 5000);
+    setInterval(fetchHealth, 10000);
+  }
+
+  init();
+</script>
+</body>
+</html>

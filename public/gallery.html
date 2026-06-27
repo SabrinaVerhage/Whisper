@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="en" class="theme-dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>whisper field</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { width: 100%; height: 100%; overflow: hidden; }
+
+  /* ── Themes ─────────────────────────────────────────────────── */
+  html.theme-dark  {
+    --bg:        #06010f;
+    --label:     rgba(255,255,255,0.28);
+    --phrase:    rgba(255,255,255,0.16);
+    --title:     rgba(255,255,255,0.22);
+    --text-hl:   rgba(255,255,255,0.82);
+    --text-body: rgba(255,255,255,0.38);
+  }
+  html.theme-light {
+    --bg:        #ede8f2;
+    --label:     rgba(20,8,32,0.40);
+    --phrase:    rgba(20,8,32,0.22);
+    --title:     rgba(20,8,32,0.30);
+    --text-hl:   rgba(20,8,32,0.82);
+    --text-body: rgba(20,8,32,0.44);
+  }
+
+  body { background: var(--bg); }
+
+  /* ── Page title ─────────────────────────────────────────────── */
+  #title {
+    position: fixed;
+    top: 18px; left: 24px;
+    font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    font-weight: 500;
+    font-size: calc(17px * var(--font-scale, 1));
+    letter-spacing: -0.025em;
+    line-height: 0.96;
+    text-transform: lowercase;
+    color: var(--label);
+    pointer-events: none;
+    z-index: 10;
+    white-space: nowrap;
+  }
+
+  /* ── Full-screen grid ───────────────────────────────────────── */
+  #grid {
+    position: fixed;
+    inset: 0;
+    display: grid;
+    grid-template-columns: repeat(var(--cols, 8), 1fr);
+    grid-template-rows:    repeat(var(--rows, 4), 1fr);
+    gap: 8px;
+    padding: 8px;
+  }
+
+  /* ── Fingerprint cell ───────────────────────────────────────── */
+  .cell {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    min-width: 0;
+    min-height: 0;
+  }
+
+  .cell canvas {
+    /* flex: 1 1 0 fills all remaining cell height.
+       Canvas starts at 1×1 so its intrinsic size never fights the flex layout.
+       ResizeObserver immediately updates pixel dimensions to match CSS layout. */
+    flex: 1 1 0;
+    min-height: 0;
+    min-width: 0;
+    width: 100%;
+    height: 0;
+    display: block;
+  }
+
+  .cell-wspr {
+    font-family: 'IBM Plex Mono', 'SF Mono', monospace;
+    font-size: calc(8px * var(--font-scale, 1));
+    letter-spacing: 0.18em;
+    color: var(--label);
+    text-transform: uppercase;
+    line-height: 1;
+    flex-shrink: 0;
+  }
+
+  .cell-phrase {
+    font-family: 'IBM Plex Mono', 'SF Mono', monospace;
+    font-size: calc(7px * var(--font-scale, 1));
+    color: var(--phrase);
+    text-align: center;
+    line-height: 1.3;
+    max-width: 100%;
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    font-style: italic;
+    flex-shrink: 0;
+    padding: 0 2px;
+  }
+
+  /* ── QR card ────────────────────────────────────────────────── */
+  .cell-qr {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: flex-end;
+    gap: 8px;
+    padding: 12px;
+    min-width: 0;
+    min-height: 0;
+  }
+  .cell-qr-wrap {
+    /* aspect-ratio keeps the wrapper square; width controls its size.
+       Avoids position:absolute which blocks mix-blend-mode from compositing
+       against the page background through the fixed grid. */
+    width: 55%;
+    aspect-ratio: 1;
+    flex-shrink: 0;
+  }
+  .cell-qr-wrap img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    display: block;
+  }
+  html.theme-light .cell-qr-wrap img {
+    mix-blend-mode: multiply;
+  }
+  html.theme-dark .cell-qr-wrap img {
+    filter: invert(1);
+    mix-blend-mode: screen;
+  }
+  /* ── Credit ─────────────────────────────────────────────────── */
+  #credit {
+    position: fixed;
+    bottom: 18px; right: 24px;
+    text-align: right;
+    pointer-events: none;
+    z-index: 10;
+    line-height: 1;
+  }
+  .credit-name {
+    font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    font-weight: 500;
+    font-size: calc(13px * var(--font-scale, 1));
+    letter-spacing: -0.025em;
+    line-height: 0.96;
+    color: var(--label);
+  }
+  .credit-handle {
+    font-family: 'IBM Plex Mono', 'SF Mono', monospace;
+    font-size: calc(9px * var(--font-scale, 1));
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--phrase);
+    margin-top: 5px;
+  }
+
+  .cell-qr-label {
+    font-family: 'IBM Plex Mono', 'SF Mono', monospace;
+    font-size: calc(7px * var(--font-scale, 1));
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--label);
+    text-align: center;
+    line-height: 1;
+    flex-shrink: 0;
+  }
+
+  /* ── Text card ──────────────────────────────────────────────── */
+  .cell-text {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: flex-end;
+    padding: 14px 16px;
+    min-width: 0;
+    min-height: 0;
+  }
+
+  .cell-text-hl {
+    font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    font-weight: 700;
+    font-size: calc(21px * var(--font-scale, 1));
+    letter-spacing: -0.05em;
+    line-height: 1.0;
+    color: var(--text-hl);
+    margin-bottom: 12px;
+    white-space: pre-line;
+    text-align: right;
+  }
+
+  .cell-text-body {
+    font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    font-weight: 400;
+    font-size: calc(9px * var(--font-scale, 1));
+    line-height: 1.6;
+    color: var(--text-body);
+    text-align: right;
+  }
+</style>
+</head>
+<body>
+
+<div id="title">whisper field</div>
+<div id="credit">
+  <div class="credit-name">sex tech sabrina</div>
+  <div class="credit-handle">@sextechsabrina</div>
+</div>
+<div id="grid"></div>
+
+<script src="/public/fingerprint.js"></script>
+<script>
+(async () => {
+  const INITIAL_STAGGER = 320;    // ms between each cell's initial activation
+  const PARADE_START    = 15000;  // ms before rolling re-bloom begins
+  const DARK_PAUSE      = 600;    // ms cell stays dark between shrink and re-form
+
+  // ── Config ────────────────────────────────────────────────────
+  let cfg = {};
+  try { cfg = await fetch('/config').then(r => r.json()); } catch {}
+
+  const THEME      = cfg.galleryTheme          ?? 'dark';
+  const fpCfg = {
+    ...buildFingerprintConfig(cfg),
+    blendMode: THEME === 'light' ? 'multiply' : 'screen',
+  };
+  const COLS       = Math.max(1, cfg.galleryCols          ?? 8);
+  const ROWS       = Math.max(1, cfg.galleryRows          ?? 4);
+  const FONT_SCALE = cfg.galleryFontScale ?? 1.0;
+  const PARADE_INTERVAL = Math.max(2000, cfg.galleryParadeInterval ?? 10000);
+  const MAX    = Math.max(1, cfg.galleryMaxWhispers   ?? 32);
+  const TOTAL  = COLS * ROWS;
+
+  document.documentElement.className = `theme-${THEME}`;
+  document.documentElement.style.setProperty('--cols', COLS);
+  document.documentElement.style.setProperty('--rows', ROWS);
+  document.documentElement.style.setProperty('--font-scale', FONT_SCALE);
+
+  // ── Fixed card positions ──────────────────────────────────────
+  const textRow  = Math.floor(ROWS / 2);
+  const textCol  = Math.max(0, COLS - 2);
+  const TEXT_IDX = textRow * COLS + textCol;
+  const QR_IDX   = (ROWS - 1) * COLS;  // always bottom-left
+
+  function buildQrCard() {
+    const cell = document.createElement('div');
+    cell.className = 'cell cell-qr';
+    const wrap = document.createElement('div');
+    wrap.className = 'cell-qr-wrap';
+    const img = document.createElement('img');
+    img.src = '/public/qr-code.png';
+    img.alt = 'scan to participate';
+    wrap.appendChild(img);
+    const label = document.createElement('span');
+    label.className = 'cell-qr-label';
+    label.textContent = 'scan to participate';
+    cell.appendChild(wrap);
+    cell.appendChild(label);
+    return cell;
+  }
+
+  function buildTextCard() {
+    const cell = document.createElement('div');
+    cell.className = 'cell cell-text';
+    const hl = document.createElement('div');
+    hl.className = 'cell-text-hl';
+    hl.textContent = 'Record a fantasy.\nKeep the secret.';
+    const body = document.createElement('div');
+    body.className = 'cell-text-body';
+    body.textContent = 'This installation transforms recorded fantasies into unintelligible whispers, dissolving meaning while preserving intimacy.';
+    cell.appendChild(hl);
+    cell.appendChild(body);
+    return cell;
+  }
+
+  // ── Grid state ────────────────────────────────────────────────
+  const grid = document.getElementById('grid');
+  let cells   = [];
+  let cellMap = new Map();
+  let ro      = null;
+  let paradeTimer = null;
+
+  function stopAll() {
+    if (paradeTimer) { clearTimeout(paradeTimer); paradeTimer = null; }
+    if (ro) { ro.disconnect(); ro = null; }
+    cells.forEach(c => { if (c?.renderer) { c.renderer.stop(); c.renderer = null; } });
+    cells = [];
+    cellMap = new Map();
+    grid.innerHTML = '';
+  }
+
+  function activateCell(cell) {
+    if (cell.renderer) { cell.renderer.stop(); cell.renderer = null; }
+    if (cell.canvas.width < 4 || cell.canvas.height < 4) return;
+    const r = new FingerprintRenderer(cell.canvas, cell.params, fpCfg);
+    cell.renderer = r;
+    r.start();
+  }
+
+  function buildGrid(whispers) {
+    stopAll();
+    const n = whispers.length;
+    let wIdx = 0;
+
+    for (let i = 0; i < TOTAL; i++) {
+      if (i === TEXT_IDX) { grid.appendChild(buildTextCard()); cells.push(null); continue; }
+      if (i === QR_IDX)   { grid.appendChild(buildQrCard());  cells.push(null); continue; }
+
+      let params = null;
+      if (n > 0) {
+        const w        = whispers[wIdx % n];
+        const tilePass = Math.floor(wIdx / n);
+        params = buildFingerprintParams(w);
+        if (tilePass > 0) params = { ...params, seed: String(params.seed) + '~' + tilePass };
+      }
+      wIdx++;
+
+      const cell   = document.createElement('div');
+      cell.className = 'cell';
+      const canvas = document.createElement('canvas');
+      canvas.width = 1; canvas.height = 1;
+
+      const wspr   = document.createElement('span'); wspr.className = 'cell-wspr';
+      const phrase = document.createElement('span'); phrase.className = 'cell-phrase';
+      if (params && wIdx - 1 < n) {
+        const w = whispers[(wIdx - 1) % n];
+        wspr.textContent = w.wspr ?? w.id?.slice(-4) ?? '';
+        const txt = (w.llm?.rephrased ?? w.transcript ?? '').trim();
+        phrase.textContent = txt.length > 55 ? txt.slice(0, 55) + '…' : txt;
+      }
+
+      cell.appendChild(canvas);
+      cell.appendChild(wspr);
+      cell.appendChild(phrase);
+      grid.appendChild(cell);
+
+      const cellObj = { canvas, params, renderer: null };
+      cells.push(cellObj);
+      cellMap.set(canvas, cellObj);
+    }
+
+    const activeCells = cells.filter(c => c !== null && c.params !== null);
+    if (activeCells.length === 0) return;
+
+    // ResizeObserver syncs canvas pixel size to CSS layout size
+    ro = new ResizeObserver(entries => {
+      for (const e of entries) {
+        const cell = cellMap.get(e.target);
+        if (!cell || !cell.params) continue;
+        const w = Math.round(e.contentRect.width);
+        const h = Math.round(e.contentRect.height);
+        if (w < 4 || h < 4 || (cell.canvas.width === w && cell.canvas.height === h)) continue;
+        cell.canvas.width  = w;
+        cell.canvas.height = h;
+        if (cell.renderer) { cell.renderer.stop(); cell.renderer = null; }
+      }
+    });
+    cells.forEach(c => { if (c) ro.observe(c.canvas); });
+
+    // Staggered initial bloom
+    setTimeout(() => {
+      activeCells.forEach((cell, i) => setTimeout(() => activateCell(cell), i * INITIAL_STAGGER));
+    }, 100);
+
+    // Rolling parade
+    let paradeIdx = 0;
+    function paradeNext() {
+      const cell = activeCells[paradeIdx % activeCells.length];
+      paradeIdx++;
+      if (cell.renderer) {
+        cell.renderer.shrink(() => setTimeout(() => activateCell(cell), DARK_PAUSE));
+      }
+      paradeTimer = setTimeout(paradeNext, PARADE_INTERVAL);
+    }
+    paradeTimer = setTimeout(paradeNext, PARADE_START);
+  }
+
+  // ── Initial load ──────────────────────────────────────────────
+  async function fetchWhispers() {
+    try {
+      const data = await fetch('/whispers').then(r => r.json());
+      return (data.whispers || []).slice(0, MAX);
+    } catch { return []; }
+  }
+
+  let whispers = await fetchWhispers();
+  buildGrid(whispers);
+
+  // ── Live update — poll every 15s ──────────────────────────────
+  // When a new whisper arrives it slots into position 0 and all others shift.
+  const POLL_INTERVAL = 15000;
+  let lastFirstId = whispers[0]?.id ?? null;
+
+  setInterval(async () => {
+    const fresh = await fetchWhispers();
+    const newFirstId = fresh[0]?.id ?? null;
+    if (newFirstId !== lastFirstId) {
+      lastFirstId = newFirstId;
+      whispers = fresh;
+      buildGrid(whispers);  // full rebuild: new entry at slot 0, rest shift by one
+    }
+  }, POLL_INTERVAL);
+})();
+</script>
+</body>
+</html>

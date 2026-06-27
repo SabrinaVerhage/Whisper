@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <title>Whisper</title>
+    <link rel="stylesheet" href="/public/recorder.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+
+      <!-- WebGL gradient canvas — persistent background for all screens -->
+      <canvas id="shaderCanvas" aria-hidden="true"></canvas>
+
+      <!-- ── SCREEN 1: SPLASH ───────────────────────────────── -->
+      <section id="screen-splash" class="screen screen--active" aria-label="Welcome">
+        <div class="splash-content">
+          <header class="splash-header">
+            <p class="label-mono anim-in">SEX · TECH · SABRINA</p>
+          </header>
+          <div class="splash-spacer"></div>
+          <h1 class="splash-headline anim-in">whisper</h1>
+          <p class="splash-desc anim-in">Say something you could never say out loud. We dissolve your words into a warm, illegible sound — recognisable as you, readable by no one — and release it into the field.</p>
+          <p class="splash-tagline anim-in">AN ANONYMOUS ARCHIVE<br>OF UNSAYABLE THINGS</p>
+          <button id="beginButton" class="btn btn--white anim-in" type="button">Begin</button>
+        </div>
+      </section>
+
+      <!-- ── SCREEN 2: RECORD ───────────────────────────────── -->
+      <section id="screen-record" class="screen" aria-label="Record your whisper">
+        <div class="record-topbar">
+          <button id="backButton" class="icon-btn" type="button" aria-label="Go back">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg>
+          </button>
+          <div class="rec-indicator" id="recIndicator" aria-live="polite">
+            <span class="rec-dot"></span>
+            <time id="recTimer" class="label-mono">0:00</time>
+          </div>
+          <span class="icon-btn-spacer"></span>
+        </div>
+
+        <div class="record-hero">
+          <!-- Transparent touch target — persistent circle is the visual -->
+          <button id="auraButton" class="aura-button" type="button" aria-label="Hold to record"></button>
+        </div>
+
+        <div class="record-footer">
+          <div class="live-si-score" id="liveSIScore" aria-hidden="true">
+            <span class="si-score-label">SENSUALITY</span>
+            <div class="si-score-value">
+              <span id="siScoreNumber">0</span><span class="si-score-pct">%</span>
+            </div>
+            <div class="si-score-bar-track">
+              <div class="si-score-bar-fill" id="siScoreFill"></div>
+            </div>
+          </div>
+          <p class="record-cta-headline anim-in" id="recordCtaHeadline">hold to whisper</p>
+          <p class="record-cta-sub anim-in" id="recordCtaSub">press and hold the circle</p>
+        </div>
+      </section>
+
+      <!-- ── SCREEN 3: ANALYZING ────────────────────────────── -->
+      <section id="screen-analyzing" class="screen" aria-label="Analyzing your whisper" aria-live="polite">
+        <!-- Fingerprint blob animation — behind the text -->
+        <canvas id="fingerprintCanvas" aria-hidden="true" hidden></canvas>
+        <div class="analyzing-content">
+          <p class="label-mono analyzing-label anim-in">ANALYZING</p>
+          <p class="analyzing-headline anim-in" id="analyzingHeadline">listening to<br>your whisper…</p>
+        </div>
+      </section>
+
+      <!-- ── SCREEN 4: FIELD ────────────────────────────────── -->
+      <section id="screen-field" class="screen screen--field" aria-label="Your whisper in the field">
+
+        <!-- Map overlay: crosshair lines, dot, code label (injected by JS) -->
+        <div class="field-map-overlay" id="fieldMapOverlay" aria-hidden="true"></div>
+
+        <!-- Top labels — shown after confirm -->
+        <div class="field-top-labels" id="fieldTopLabels" hidden>
+          <p class="label-mono field-status-label anim-in">RELEASED · THE FIELD</p>
+          <h2 class="field-headline anim-in">Your whisper<br>is in the field.</h2>
+        </div>
+
+        <!-- Bottom overlay card -->
+        <div class="field-overlay-card">
+          <div class="card-drag-handle" id="cardDragHandle"></div>
+          <button id="replayButton" class="replay-btn">▶ replay fingerprint</button>
+
+          <!-- Confirm state (default) -->
+          <div id="fieldConfirmState">
+            <p class="field-confirm-text anim-in">your whisper is placed in the field</p>
+            <div class="field-confirm-actions">
+              <button id="retryButton" class="btn" type="button">try again</button>
+              <button id="confirmButton" class="btn btn--primary btn--grow" type="button">release it →</button>
+            </div>
+          </div>
+
+          <!-- Receipt state (shown after confirm) -->
+          <div id="fieldReceiptState" hidden>
+            <div class="field-code-row">
+              <div>
+                <p class="label-mono field-ref-label">YOUR FIELD-REF</p>
+                <p class="field-ref-code">WSPR<span class="dot-sep">·</span><span id="fieldCode">????</span></p>
+                <p class="label-mono field-ref-sensuality" id="fieldSensualityLabel"></p>
+              </div>
+              <p class="label-mono field-ref-play-hint">tap the dot to play</p>
+            </div>
+
+            <div class="email-area">
+              <div class="email-input-row" id="emailInputRow">
+                <div class="email-input-wrap">
+                  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="rgba(20,16,24,0.36)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/></svg>
+                  <input type="email" id="emailInput" placeholder="email me my ref" autocomplete="email" />
+                </div>
+                <button id="emailSendButton" class="btn btn--primary btn--icon" type="button" aria-label="Send field-ref to email">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/></svg>
+                </button>
+              </div>
+              <div class="email-sent" id="emailSent" hidden>
+                <span class="email-sent-badge">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12l5 5L20 6"/></svg>
+                </span>
+                <span class="email-sent-text" id="emailSentText">Sent. Keep it somewhere safe.</span>
+              </div>
+            </div>
+
+            <!-- Field navigation joystick (shown after confirm) -->
+            <div id="fieldNav" hidden>
+              <div class="field-nav-divider"></div>
+              <div class="joystick-wrap">
+                <div class="joystick-outer" id="joystickOuter">
+                  <div class="joystick-knob" id="joystickKnob">
+                    <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+                      <path d="M7 2v10M2 7h10" stroke="rgba(255,255,255,0.45)" stroke-width="1.5" stroke-linecap="round"/>
+                    </svg>
+                  </div>
+                </div>
+                <p class="steer-label">STEER THE FIELD</p>
+                <p class="steer-sub">drag to move your lens on the big screen</p>
+              </div>
+              <div class="passing-through" id="passingThrough" hidden>
+                <div class="pt-header">PASSING THROUGH <span class="live-dot">●</span> LIVE</div>
+                <ul id="ptList" class="pt-list"></ul>
+              </div>
+            </div>
+
+            <button id="restartButton" class="btn field-restart-btn" type="button">Leave another whisper</button>
+          </div>
+
+        </div>
+      </section>
+
+      <!-- Persistent circle — single element morphing across all screens -->
+      <div id="persistentCircle" aria-hidden="true">
+        <div id="persistentCircleAura"></div>
+      </div>
+
+    </main>
+
+    <script src="/public/fingerprint.js"></script>
+    <script src="/public/recorder.js"></script>
+  </body>
+</html>
