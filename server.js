@@ -94,6 +94,7 @@ function sendAudioFile(request, response, filePath, contentType) {
           "Accept-Ranges": "bytes",
           "Content-Length": clampedEnd - start + 1,
           "Cache-Control": "no-store",
+          "Access-Control-Allow-Origin": "*",
         });
         response.end(content.slice(start, clampedEnd + 1));
         return;
@@ -104,6 +105,7 @@ function sendAudioFile(request, response, filePath, contentType) {
       "Accept-Ranges": "bytes",
       "Content-Length": total,
       "Cache-Control": "no-store",
+      "Access-Control-Allow-Origin": "*",
     });
     response.end(content);
   });
@@ -485,29 +487,22 @@ function generateVocalScore(affect = {}, semantics = {}) {
   const playfulness = clamp("playfulness", 0.3);
   const tempo       = clamp("tempo",       0.4);
 
-  const pick  = arr => arr[Math.floor(Math.random() * arr.length)];
-  const p     = () => tempo < 0.35 ? " ... " : "... ";
+  const pick = arr => arr[Math.floor(Math.random() * arr.length)];
+  const gap  = tempo < 0.35 ? " ... " : " .. ";
 
-  const airy  = ["shhhh", "ffhhh", "hhh",  "haaa"];
-  const hums  = ["mmm",   "hmm",   "mhm",  "hmmm"];
-  const tense = ["nnn",   "mmm",   "mhm"];
-  const vocal = ["ahh",   "ohh",   "ahhh"];
+  // One sound before, one after — affect-weighted pools
+  const airy  = ["shhhh", "ffhhh", "hhh"];
+  const hums  = ["mmm",   "hmm",   "hmmm"];
+  const tense = ["nnn",   "mmh"];
+  const vocal = ["ahh",   "ohh"];
 
-  const events = [];
-  if (breathiness > 0.55) events.push("haaa");
+  const pool = breathiness > 0.55 ? airy
+             : tension     > 0.50 ? tense
+             : warmth      > 0.55 ? vocal
+             : hums;
 
-  const count = Math.round(3 + energy * 5);
-  for (let i = 0; i < count; i++) {
-    const r = Math.random();
-    if      (r < breathiness * 0.45)   events.push(pick(airy));
-    else if (r < tension * 0.3 + 0.2)  events.push(pick(tense));
-    else if (r < warmth * 0.5 + 0.35)  events.push(pick(vocal));
-    else                               events.push(pick(hums));
-  }
-
-  if (playfulness > 0.55) events.push("mhm");
-  if (warmth      > 0.60) events.push("mmm");
-  if (breathiness > 0.45) events.push("shhhh");
+  const before = pick(pool);
+  const after  = pick(breathiness > 0.45 ? airy : hums);
 
   // Find the dominant semantic dimension (if any score > 0.5)
   const SEM_PHRASES = {
@@ -557,12 +552,8 @@ function generateVocalScore(affect = {}, semantics = {}) {
 
   const phrase = `${pick(carriers)} ${pick(nouns)}`;
 
-  // Phrase sits in the middle: phonetics ... phrase ... phonetics
-  const mid    = Math.ceil(events.length / 2);
-  const first  = events.slice(0, mid).join(p());
-  const second = events.slice(mid).join(p());
-
-  return "[whispering] " + first + " ... " + phrase + " ... " + second;
+  // Structure: sound ... [whispering] phrase ... sound
+  return before + gap + "[whispering] " + phrase + gap + after;
 }
 
 function callElevenLabs(vocalScore, outputPath) {
@@ -643,20 +634,18 @@ async function saveWhisper(payload, { waitForAnalysis = false } = {}) {
       : path.join(__dirname, audioFile);
 
     if (waitForAnalysis) {
-      // Phase 1 (sync, fast): whisperize + acoustic features only — no Whisper transcription.
-      // Runs in ~5s so the HTTP response gets whisperizedFile quickly.
+      // Phase 1 (sync, fast): acoustic features only — no Whisper transcription.
+      // Runs in ~5s so the HTTP response gets acoustic features quickly.
       const extra = await Promise.race([
         runPythonAnalysis(fullAudioPath, { extraArgs: ['--skip-transcription'], timeoutMs: 25_000 }),
         new Promise(resolve => setTimeout(() => resolve(null), 25000)),
       ]);
       if (extra) {
-        const { whisperizedFile, ...acousticFeatures } = extra;
-        record.features = { ...record.features, ...acousticFeatures };
+        record.features = { ...record.features, ...extra };
         record.sensuality = computeSensualityIndex(record.features);
         record.fieldPosition = computeFieldPosition(record.features, record.sensuality);
-        if (whisperizedFile) record.whisperizedFile = whisperizedFile;
         await writeFile(recordPath, `${JSON.stringify(record, null, 2)}\n`, "utf8");
-        console.log(`[analyze] ${id} — HNR: ${extra.hnr ?? "—"}, F0: ${extra.f0Mean ?? "—"} Hz, whisperized: ${whisperizedFile ? "yes" : "no"}`);
+        console.log(`[analyze] ${id} — HNR: ${extra.hnr ?? "—"}, F0: ${extra.f0Mean ?? "—"} Hz`);
 
         // UMAP positioning
         const umapPos = await runUmapPosition(id);
@@ -701,12 +690,11 @@ async function saveWhisper(payload, { waitForAnalysis = false } = {}) {
         if (!extra) return;
         try {
           const existing = JSON.parse(await readFile(recordPath, "utf8"));
-          const { transcript: pyTranscript, transcriptLanguage, whisperizedFile, ...acousticFeatures } = extra;
+          const { transcript: pyTranscript, transcriptLanguage, ...acousticFeatures } = extra;
           existing.features = { ...existing.features, ...acousticFeatures };
           if (pyTranscript) { existing.transcript = pyTranscript; existing.transcriptLanguage = transcriptLanguage; }
           existing.sensuality = computeSensualityIndex(existing.features);
           existing.fieldPosition = computeFieldPosition(existing.features, existing.sensuality);
-          if (whisperizedFile) existing.whisperizedFile = whisperizedFile;
           await writeFile(recordPath, `${JSON.stringify(existing, null, 2)}\n`, "utf8");
           console.log(`[analyze] updated ${id} — HNR: ${extra.hnr ?? "—"}, F0: ${extra.f0Mean ?? "—"} Hz, transcript: "${pyTranscript?.slice(0, 40) ?? "—"}"`);
 
@@ -923,10 +911,14 @@ async function route(request, response) {
         'fp_positionSpread', 'fp_orbitSpread',
         'fp_breathinessSizeScale', 'fp_darknessSizeScale',
         'fp_softnessSizeScale', 'fp_pitchLownessSizeScale',
+        'fp_slownessSizeScale', 'fp_pitchSteadinessSizeScale',
+        'fp_sensorySizeScale', 'fp_tabooSizeScale',
+        'fp_identitySizeScale', 'fp_unspeakableSizeScale',
         'fp_accentDotCount', 'fp_accentDotMaxSize',
         'fp_particleBase', 'fp_particleFantasyScale', 'fp_satelliteMax',
         'fp_formingMs', 'fp_settlingMs', 'fp_breatheStrength',
         'fp_maskInner', 'fp_maskOuter', 'fp_showSemanticLabels',
+        'fp_semanticLabelThreshold',
       ];
       for (const k of allowed) {
         if (body[k] !== undefined) config[k] = body[k];
@@ -934,6 +926,29 @@ async function route(request, response) {
       await saveConfig();
     } catch {}
     json(response, 200, config);
+    return;
+  }
+
+  if (request.method === "GET" && url.pathname === "/strudel-map") {
+    const whispers = await listWhispers();
+    const origin = `http://${request.headers.host}`;
+    const soft = [], warm = [], intense = [];
+    for (const w of whispers) {
+      if (!w.generatedWhisperFile) continue;
+      const filename = path.basename(w.generatedWhisperFile);
+      if (!existsSync(path.join(RECORDINGS_DIR, filename))) continue;
+      const entry = `${origin}/recordings/${filename}`;
+      const score = w.sensuality?.score ?? 0.5;
+      if (score < 0.4) soft.push(entry);
+      else if (score < 0.7) warm.push(entry);
+      else intense.push(entry);
+    }
+    json(response, 200, {
+      whisper_soft: soft,
+      whisper_warm: warm,
+      whisper_intense: intense,
+      whisper_all: [...soft, ...warm, ...intense],
+    });
     return;
   }
 

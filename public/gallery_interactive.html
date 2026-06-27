@@ -183,151 +183,198 @@
     text-align: left;
   }
 
-  /* ── Overlay ────────────────────────────────────────────────── */
+  /* ── Overlay — full-screen 3-column layout ─────────────────── */
   #overlay {
     position: fixed;
     inset: 0;
     z-index: 100;
-    background: rgba(0,0,0,0.88);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 24px;
+    background: #06010f;
+    display: grid;
+    grid-template-columns: 260px 1fr 260px;
+    grid-template-rows: auto 1fr auto;
+    grid-template-areas:
+      "head  head  head"
+      "left  fp    right"
+      "foot  foot  foot";
+    overflow: hidden;
   }
   #overlay[hidden] { display: none; }
 
-  #overlay-card {
-    position: relative;
-    background: #0d0b14;
-    border: 1px solid rgba(255,255,255,0.08);
-    border-radius: 4px;
-    width: 100%;
-    max-width: 960px;
-    max-height: 90vh;
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    grid-template-rows: 1fr;
-    overflow: hidden;
+  /* ── top strip ───── */
+  #overlay-head {
+    grid-area: head;
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    padding: 18px 22px 12px;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+    flex-shrink: 0;
   }
 
   #overlay-close {
-    position: absolute;
-    top: 14px; right: 16px;
-    z-index: 10;
     background: none;
     border: none;
-    color: rgba(255,255,255,0.38);
-    font-size: 22px;
+    color: rgba(255,255,255,0.28);
+    font-size: 20px;
     line-height: 1;
     cursor: pointer;
-    padding: 4px 6px;
+    padding: 2px 4px;
     transition: color 0.15s;
+    flex-shrink: 0;
   }
-  #overlay-close:hover { color: rgba(255,255,255,0.82); }
+  #overlay-close:hover { color: rgba(255,255,255,0.72); }
 
-  #overlay-fp {
-    aspect-ratio: 1;
-    position: relative;
-    overflow: hidden;
-    align-self: center;
-  }
-  #overlay-canvas {
-    width: 100%;
-    height: 100%;
-    display: block;
-  }
-
-  #overlay-data {
-    padding: 28px 28px 28px 20px;
+  /* ── left column — acoustic bars ───── */
+  #overlay-left {
+    grid-area: left;
+    padding: 20px 18px 16px 22px;
     overflow-y: auto;
     display: flex;
     flex-direction: column;
-    gap: 20px;
-    max-height: 90vh;
+    border-right: 1px solid rgba(255,255,255,0.05);
   }
-  /* thin scrollbar */
-  #overlay-data::-webkit-scrollbar { width: 3px; }
-  #overlay-data::-webkit-scrollbar-track { background: transparent; }
-  #overlay-data::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); border-radius: 2px; }
 
-  /* ── Overlay: header ───── */
+  /* ── center — fingerprint canvas ───── */
+  #overlay-fp {
+    grid-area: fp;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    padding: 16px;
+  }
+  #overlay-canvas {
+    display: block;
+    /* Square canvas that fills the available center space */
+    width:  min(100%, 100vh - 160px);
+    height: min(100%, 100vh - 160px);
+    aspect-ratio: 1;
+  }
+
+  /* ── right column — semantic bars ───── */
+  #overlay-right {
+    grid-area: right;
+    padding: 20px 22px 16px 18px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    border-left: 1px solid rgba(255,255,255,0.05);
+  }
+
+  /* thin scrollbars on side columns */
+  #overlay-left::-webkit-scrollbar,
+  #overlay-right::-webkit-scrollbar { width: 3px; }
+  #overlay-left::-webkit-scrollbar-track,
+  #overlay-right::-webkit-scrollbar-track { background: transparent; }
+  #overlay-left::-webkit-scrollbar-thumb,
+  #overlay-right::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.10); border-radius: 2px; }
+
+  /* ── bottom strip ───── */
+  #overlay-foot {
+    grid-area: foot;
+    display: grid;
+    grid-template-columns: 1fr auto auto;
+    align-items: center;
+    gap: 24px;
+    padding: 12px 22px 16px;
+    border-top: 1px solid rgba(255,255,255,0.06);
+    flex-shrink: 0;
+  }
+
+  /* ── Overlay: header elements ───── */
   .ov-wspr {
     font-family: 'IBM Plex Mono', 'SF Mono', monospace;
     font-size: 11px;
     letter-spacing: 0.22em;
     text-transform: uppercase;
-    color: rgba(255,255,255,0.35);
+    color: rgba(255,255,255,0.30);
   }
   .ov-wspr span {
-    color: rgba(255,255,255,0.7);
+    color: rgba(255,255,255,0.65);
     margin-right: 14px;
   }
 
+  /* ── Overlay: footer elements ───── */
   .ov-rephrased {
     font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
     font-style: italic;
-    font-size: 15px;
+    font-size: 13px;
     line-height: 1.5;
-    color: rgba(255,255,255,0.72);
+    color: rgba(255,255,255,0.55);
+    min-width: 0;
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
   }
 
-  /* ── Overlay: score ───── */
-  .ov-score-row {
-    display: flex;
-    align-items: baseline;
-    gap: 10px;
+  .ov-score-block {
+    text-align: right;
+    flex-shrink: 0;
   }
   .ov-score-num {
     font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
     font-weight: 700;
-    font-size: 36px;
+    font-size: 28px;
     letter-spacing: -0.04em;
     line-height: 1;
     color: #FF2D8E;
   }
   .ov-score-label {
     font-family: 'IBM Plex Mono', 'SF Mono', monospace;
-    font-size: 9px;
-    letter-spacing: 0.18em;
+    font-size: 8px;
+    letter-spacing: 0.16em;
     text-transform: uppercase;
-    color: rgba(255,255,255,0.28);
+    color: rgba(255,255,255,0.22);
+    margin-top: 2px;
   }
   .ov-partial {
     font-family: 'IBM Plex Mono', 'SF Mono', monospace;
-    font-size: 9px;
-    letter-spacing: 0.14em;
-    color: rgba(255,255,255,0.22);
+    font-size: 8px;
+    color: rgba(255,255,255,0.18);
   }
+
+  /* ── Overlay: audio ───── */
+  .ov-audio { flex-shrink: 0; }
+  .ov-audio audio {
+    width: 180px;
+    height: 28px;
+    opacity: 0.6;
+    filter: invert(1) hue-rotate(200deg) brightness(0.6);
+  }
+  .ov-audio audio:hover { opacity: 0.9; }
 
   /* ── Overlay: section heading ───── */
   .ov-section-title {
     font-family: 'IBM Plex Mono', 'SF Mono', monospace;
-    font-size: 9px;
-    letter-spacing: 0.22em;
+    font-size: 8px;
+    letter-spacing: 0.24em;
     text-transform: uppercase;
-    color: rgba(255,255,255,0.22);
-    margin-bottom: 10px;
+    color: rgba(255,255,255,0.18);
+    margin-bottom: 12px;
     padding-bottom: 6px;
-    border-bottom: 1px solid rgba(255,255,255,0.07);
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+    flex-shrink: 0;
   }
 
   /* ── Overlay: top semantic tags ───── */
   .ov-sem-top {
     font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
-    font-size: 13px;
+    font-size: 12px;
     font-weight: 500;
-    letter-spacing: 0.01em;
-    color: rgba(255,255,255,0.55);
-    margin-bottom: 12px;
+    color: rgba(255,255,255,0.45);
+    margin-bottom: 14px;
+    flex-shrink: 0;
   }
   .ov-sem-top strong {
-    color: rgba(255,255,255,0.85);
+    color: rgba(255,255,255,0.80);
     font-weight: 600;
   }
 
   /* ── Overlay: dimension bars ───── */
   .ov-dim {
-    margin-bottom: 11px;
+    margin-bottom: 10px;
+    flex-shrink: 0;
   }
   .ov-dim:last-child { margin-bottom: 0; }
 
@@ -339,20 +386,20 @@
   }
   .ov-dim-name {
     font-family: 'IBM Plex Mono', 'SF Mono', monospace;
-    font-size: 9.5px;
-    letter-spacing: 0.1em;
+    font-size: 9px;
+    letter-spacing: 0.09em;
     text-transform: lowercase;
-    color: rgba(255,255,255,0.45);
+    color: rgba(255,255,255,0.40);
   }
   .ov-dim-val {
     font-family: 'IBM Plex Mono', 'SF Mono', monospace;
-    font-size: 9px;
-    color: rgba(255,255,255,0.25);
+    font-size: 8.5px;
+    color: rgba(255,255,255,0.22);
   }
 
   .ov-bar-track {
-    height: 2px;
-    background: rgba(255,255,255,0.08);
+    height: 1.5px;
+    background: rgba(255,255,255,0.07);
     border-radius: 1px;
     overflow: hidden;
   }
@@ -361,15 +408,15 @@
     border-radius: 1px;
     transition: width 0.4s cubic-bezier(0.16, 1, 0.3, 1);
   }
-  .ov-bar-fill.acoustic  { background: #FF2D8E; }
-  .ov-bar-fill.semantic  { background: #8A2BE2; }
+  .ov-bar-fill.acoustic { background: #FF2D8E; }
+  .ov-bar-fill.semantic { background: #8A2BE2; }
 
   .ov-stat {
-    margin-top: 4px;
+    margin-top: 3px;
     font-family: 'IBM Plex Mono', 'SF Mono', monospace;
-    font-size: 8px;
-    letter-spacing: 0.10em;
-    color: rgba(255,255,255,0.18);
+    font-size: 7.5px;
+    letter-spacing: 0.09em;
+    color: rgba(255,255,255,0.15);
   }
 
   /* ── Overlay: pending note ───── */
@@ -381,29 +428,22 @@
     font-style: italic;
   }
 
-  /* ── Overlay: audio ───── */
-  .ov-audio {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-  }
-  .ov-audio audio {
-    width: 100%;
-    height: 32px;
-    opacity: 0.7;
-    filter: invert(1) hue-rotate(200deg) brightness(0.6);
-  }
-  .ov-audio audio:focus, .ov-audio audio:hover { opacity: 1; }
-
-  /* ── Responsive: stack on narrow screens ───── */
-  @media (max-width: 600px) {
-    #overlay-card {
+  /* ── Narrow screens: stack ───── */
+  @media (max-width: 700px) {
+    #overlay {
       grid-template-columns: 1fr;
-      grid-template-rows: auto 1fr;
-      max-height: 95vh;
+      grid-template-rows: auto 40vw auto auto auto;
+      grid-template-areas:
+        "head"
+        "fp"
+        "left"
+        "right"
+        "foot";
     }
-    #overlay-fp {
-      max-height: 40vw;
+    #overlay-left, #overlay-right {
+      border: none;
+      border-top: 1px solid rgba(255,255,255,0.05);
+      max-height: 200px;
     }
   }
 </style>
@@ -413,15 +453,18 @@
 <div id="title">whisper field<div class="subtitle">sex tech sabrina</div></div>
 <div id="grid"></div>
 
-<!-- detail overlay (hidden until a cell is clicked) -->
+<!-- detail overlay (full-screen, hidden until a cell is clicked) -->
 <div id="overlay" hidden>
-  <div id="overlay-card">
+  <div id="overlay-head">
+    <div id="overlay-wspr" class="ov-wspr"></div>
     <button id="overlay-close" aria-label="close">×</button>
-    <div id="overlay-fp">
-      <canvas id="overlay-canvas"></canvas>
-    </div>
-    <div id="overlay-data"></div>
   </div>
+  <div id="overlay-left"></div>
+  <div id="overlay-fp">
+    <canvas id="overlay-canvas"></canvas>
+  </div>
+  <div id="overlay-right"></div>
+  <div id="overlay-foot"></div>
 </div>
 
 <script src="/public/fingerprint.js"></script>
@@ -444,10 +487,11 @@
   };
   const fpCfgOverlay = {
     ...buildFingerprintConfig(cfg),
-    blendMode:          'screen',
-    semanticLabelColor: '#ffffff',
-    maskShape:          'circle',
-    showSemanticLabels: true,
+    blendMode:               'screen',
+    semanticLabelColor:      '#ffffff',
+    maskShape:               'circle',
+    showSemanticLabels:      true,
+    semanticLabelThreshold:  0,   // show all labels regardless of score
   };
   const gridFpCfg = {
     ...fpCfg,
@@ -670,23 +714,24 @@
   };
 
   // ── Overlay state ─────────────────────────────────────────────
-  const overlay       = document.getElementById('overlay');
-  const overlayCard   = document.getElementById('overlay-card');
-  const overlayClose  = document.getElementById('overlay-close');
-  const overlayCanvas = document.getElementById('overlay-canvas');
-  const overlayData   = document.getElementById('overlay-data');
+  const overlay        = document.getElementById('overlay');
+  const overlayWspr    = document.getElementById('overlay-wspr');
+  const overlayClose   = document.getElementById('overlay-close');
+  const overlayLeft    = document.getElementById('overlay-left');
+  const overlayRight   = document.getElementById('overlay-right');
+  const overlayFoot    = document.getElementById('overlay-foot');
+  const overlayCanvas  = document.getElementById('overlay-canvas');
   let ovRenderer = null;
 
   function audioSrc(w) {
-    const f = w.generatedWhisperFile ?? w.whisperizedFile ?? w.audioFile;
+    const f = w.generatedWhisperFile ?? w.audioFile;
     return f ? `/${f}` : null;
   }
 
   function renderBar(label, value, cssClass, pct) {
-    const fmtVal = value != null ? value.toFixed(2) : '—';
+    const fmtVal  = value != null ? value.toFixed(2) : '—';
     const widthPct = value != null ? Math.round(value * 100) : 0;
     const statText = pct != null ? `similar to ${pct}% of whispers` : '';
-
     return `
       <div class="ov-dim">
         <div class="ov-dim-header">
@@ -701,88 +746,66 @@
   }
 
   function openOverlay(w, all) {
-    // Stop any existing overlay renderer
     if (ovRenderer) { ovRenderer.stop(); ovRenderer = null; }
 
     const { ac: acVals, sem: semVals } = buildValueArrays(all);
 
-    // Build data panel HTML
     const dateStr = w.createdAt
       ? new Date(w.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
       : '';
     const rephrased = (w.llm?.rephrased ?? w.transcript ?? '').trim();
-    const score = w.sensuality?.score;
+    const score   = w.sensuality?.score;
     const partial = w.sensuality?.partial;
-    const comp = w.sensuality?.components ?? {};
-    const sem  = w.llm?.semantics ?? null;
-    const src  = audioSrc(w);
+    const comp    = w.sensuality?.components ?? {};
+    const sem     = w.llm?.semantics ?? null;
+    const src     = audioSrc(w);
 
-    // Top semantic tags (top 2 by score)
-    let semTopHtml = '';
+    // Header: wspr code + date
+    overlayWspr.innerHTML = `<span>${w.wspr ?? w.id?.slice(-4) ?? '—'}</span>${dateStr}`;
+
+    // Left column: acoustic bars
+    overlayLeft.innerHTML = `
+      <div class="ov-section-title">acoustic</div>
+      ${AC_KEYS.map(k => renderBar(AC_LABELS[k], comp[k] ?? null, 'acoustic', similarPercent(comp[k] ?? null, acVals[k]))).join('')}
+    `;
+
+    // Right column: semantic bars
     if (sem) {
       const sorted = SEM_KEYS
         .map(k => ({ k, v: sem[k] ?? 0 }))
         .sort((a, b) => b.v - a.v)
         .slice(0, 2)
         .filter(x => x.v > 0.3);
-      if (sorted.length) {
-        semTopHtml = `<div class="ov-sem-top">${sorted.map(x => `<strong>${SEM_LABELS[x.k]}</strong>`).join(' · ')}</div>`;
-      }
-    }
-
-    // Acoustic bars
-    const acBarsHtml = AC_KEYS.map(k => {
-      const val = comp[k] ?? null;
-      const pct = similarPercent(val, acVals[k]);
-      return renderBar(AC_LABELS[k], val, 'acoustic', pct);
-    }).join('');
-
-    // Semantic bars
-    let semSection = '';
-    if (sem) {
-      const semBarsHtml = SEM_KEYS.map(k => {
-        const val = sem[k] ?? null;
-        const pct = similarPercent(val, semVals[k]);
-        return renderBar(SEM_LABELS[k], val, 'semantic', pct);
-      }).join('');
-      semSection = `
-        <div>
-          <div class="ov-section-title">desire</div>
-          ${semTopHtml}
-          ${semBarsHtml}
-        </div>`;
+      const semTopHtml = sorted.length
+        ? `<div class="ov-sem-top">${sorted.map(x => `<strong>${SEM_LABELS[x.k]}</strong>`).join(' · ')}</div>`
+        : '';
+      overlayRight.innerHTML = `
+        <div class="ov-section-title">desire</div>
+        ${semTopHtml}
+        ${SEM_KEYS.map(k => renderBar(SEM_LABELS[k], sem[k] ?? null, 'semantic', similarPercent(sem[k] ?? null, semVals[k]))).join('')}
+      `;
     } else {
-      semSection = `
-        <div>
-          <div class="ov-section-title">desire</div>
-          <div class="ov-pending">semantic analysis pending…</div>
-        </div>`;
+      overlayRight.innerHTML = `
+        <div class="ov-section-title">desire</div>
+        <div class="ov-pending">semantic analysis pending…</div>
+      `;
     }
 
-    // Audio
-    const audioHtml = src
-      ? `<div class="ov-audio">
-           <div class="ov-section-title">playback</div>
-           <audio controls src="${src}"></audio>
+    // Footer: rephrased text + score + audio
+    const scoreHtml = score != null
+      ? `<div class="ov-score-block">
+           <div class="ov-score-num">${(score * 100).toFixed(0)}</div>
+           <div class="ov-score-label">sensuality index</div>
+           ${partial ? '<div class="ov-partial">partial</div>' : ''}
          </div>`
-      : '';
+      : '<div></div>';
+    const audioHtml = src
+      ? `<div class="ov-audio"><audio controls src="${src}"></audio></div>`
+      : '<div></div>';
 
-    overlayData.innerHTML = `
-      <div class="ov-wspr"><span>${w.wspr ?? w.id?.slice(-4) ?? '—'}</span>${dateStr}</div>
-      ${rephrased ? `<div class="ov-rephrased">${rephrased}</div>` : ''}
-      ${score != null ? `
-        <div>
-          <div class="ov-score-row">
-            <div class="ov-score-num">${(score * 100).toFixed(0)}</div>
-            <div class="ov-score-label">sensuality index</div>
-          </div>
-          ${partial ? '<div class="ov-partial">partial — some features missing</div>' : ''}
-        </div>` : ''}
-      <div>
-        <div class="ov-section-title">acoustic</div>
-        ${acBarsHtml}
-      </div>
-      ${semSection}
+    overlayFoot.innerHTML = `
+      ${rephrased ? `<div class="ov-rephrased">${rephrased}</div>` : '<div></div>'}
+      ${scoreHtml}
       ${audioHtml}
     `;
 
@@ -790,11 +813,11 @@
     overlay.removeAttribute('hidden');
     requestAnimationFrame(() => requestAnimationFrame(() => {
       const rect = overlayCanvas.getBoundingClientRect();
-      const w2 = Math.round(rect.width);
-      const h2 = Math.round(rect.height);
-      if (w2 > 4 && h2 > 4) {
-        overlayCanvas.width  = w2;
-        overlayCanvas.height = h2;
+      const cw = Math.round(rect.width);
+      const ch = Math.round(rect.height);
+      if (cw > 4 && ch > 4) {
+        overlayCanvas.width  = cw;
+        overlayCanvas.height = ch;
       }
       const params = buildFingerprintParams(w);
       ovRenderer = new FingerprintRenderer(overlayCanvas, params, fpCfgOverlay);

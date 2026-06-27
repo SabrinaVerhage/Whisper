@@ -226,6 +226,48 @@
             <span class="fp-var-val" id="fp_pitchLownessSizeScale_v">1.0×</span>
           </div>
         </div>
+        <div>
+          <div class="fp-sublabel"><span class="fp-swatch" style="background:#4a4a60"></span>slowness</div>
+          <div class="fp-var-row" style="margin:0">
+            <input type="range" class="fp-var-slider" id="fp_slownessSizeScale" min="0.2" max="4.0" step="0.05">
+            <span class="fp-var-val" id="fp_slownessSizeScale_v">1.0×</span>
+          </div>
+        </div>
+        <div>
+          <div class="fp-sublabel"><span class="fp-swatch" style="background:#c8c8c8"></span>pitch steady</div>
+          <div class="fp-var-row" style="margin:0">
+            <input type="range" class="fp-var-slider" id="fp_pitchSteadinessSizeScale" min="0.2" max="4.0" step="0.05">
+            <span class="fp-var-val" id="fp_pitchSteadinessSizeScale_v">1.0×</span>
+          </div>
+        </div>
+        <div>
+          <div class="fp-sublabel"><span class="fp-swatch" style="background:#FF8FBF"></span>sensory</div>
+          <div class="fp-var-row" style="margin:0">
+            <input type="range" class="fp-var-slider" id="fp_sensorySizeScale" min="0.2" max="4.0" step="0.05">
+            <span class="fp-var-val" id="fp_sensorySizeScale_v">1.0×</span>
+          </div>
+        </div>
+        <div>
+          <div class="fp-sublabel"><span class="fp-swatch" style="background:#6B003A"></span>taboo</div>
+          <div class="fp-var-row" style="margin:0">
+            <input type="range" class="fp-var-slider" id="fp_tabooSizeScale" min="0.2" max="4.0" step="0.05">
+            <span class="fp-var-val" id="fp_tabooSizeScale_v">1.0×</span>
+          </div>
+        </div>
+        <div>
+          <div class="fp-sublabel"><span class="fp-swatch" style="background:#FFE599"></span>identity</div>
+          <div class="fp-var-row" style="margin:0">
+            <input type="range" class="fp-var-slider" id="fp_identitySizeScale" min="0.2" max="4.0" step="0.05">
+            <span class="fp-var-val" id="fp_identitySizeScale_v">1.0×</span>
+          </div>
+        </div>
+        <div>
+          <div class="fp-sublabel"><span class="fp-swatch" style="background:#0D0010;border:1px solid rgba(255,255,255,0.2)"></span>unspeakable</div>
+          <div class="fp-var-row" style="margin:0">
+            <input type="range" class="fp-var-slider" id="fp_unspeakableSizeScale" min="0.2" max="4.0" step="0.05">
+            <span class="fp-var-val" id="fp_unspeakableSizeScale_v">1.0×</span>
+          </div>
+        </div>
       </div>
 
       <!-- Layout: 2-col -->
@@ -337,9 +379,10 @@
 <script src="/public/fingerprint.js"></script>
 <script>
   /* ── State ─────────────────────────────────────────────────────────────── */
-  let whisperData = [];
-  let expanded    = new Set();
-  let drawnAudio  = new Set(); // ids where canvas drawing was triggered
+  let whisperData      = [];
+  let expanded         = new Set();
+  let drawnAudio       = new Set(); // ids where canvas drawing was triggered
+  let _lastWhisperHash = '';        // change-detection: skip rebuild when data is unchanged
 
   /* ── Lookup tables ──────────────────────────────────────────────────────── */
   const SI_COLORS = {
@@ -536,13 +579,11 @@
     ` : '';
 
     // Audio section with canvases
-    const audioFile           = w.audioFile;
-    const whisperizedFile     = w.whisperizedFile;
+    const audioFile            = w.audioFile;
     const generatedWhisperFile = w.generatedWhisperFile;
     let audioHtml = '';
-    if (audioFile || whisperizedFile || generatedWhisperFile) {
+    if (audioFile || generatedWhisperFile) {
       const filename  = audioFile            ? audioFile.split('/').pop()            : null;
-      const wFilename = whisperizedFile      ? whisperizedFile.split('/').pop()      : null;
       const gFilename = generatedWhisperFile ? generatedWhisperFile.split('/').pop() : null;
       const vocalScoreHtml = w.vocalScore
         ? `<div style="font-size:10px;color:var(--muted);margin-top:8px;letter-spacing:.05em;font-style:italic;opacity:.7">${w.vocalScore}</div>`
@@ -553,7 +594,6 @@
           <canvas id="wave-${w.id}" class="wave-canvas" width="900" height="56"></canvas>
           <canvas id="spect-${w.id}" class="spect-canvas" width="900" height="128"></canvas>
           ${filename  ? `<div style="font-size:10px;color:var(--muted);margin-top:6px;letter-spacing:.1em;text-transform:uppercase">original</div><audio controls src="/recordings/${filename}"></audio>` : ''}
-          ${wFilename ? `<div style="font-size:10px;color:var(--muted);margin-top:8px;letter-spacing:.1em;text-transform:uppercase">lpc whisperized</div><audio controls src="/recordings/${wFilename}"></audio>` : ''}
           ${gFilename ? `<div style="font-size:10px;color:#a78bfa;margin-top:12px;letter-spacing:.1em;text-transform:uppercase">generated whisper (elevenlabs)</div>${vocalScoreHtml}<audio controls src="/recordings/${gFilename}" style="margin-top:4px"></audio>` : ''}
         </div>`;
     }
@@ -909,10 +949,26 @@
   /* ── Server / config ─────────────────────────────────────────────────────── */
   async function fetchWhispers() {
     try {
-      const res = await fetch('/whispers');
-      const d   = await res.json();
-      whisperData = d.whispers || [];
-      renderWhispers(whisperData);
+      const res   = await fetch('/whispers');
+      const d     = await res.json();
+      const fresh = d.whispers || [];
+
+      // Fingerprint every field background analysis can patch.
+      // Unchanged data → same hash → skip innerHTML rebuild → playing audio is not interrupted.
+      const hash = fresh.map(w => [
+        w.id,
+        w.transcript           ?? '',
+        w.sensuality?.score    ?? '',
+        w.generatedWhisperFile ?? '',
+        w.llm?.rephrased       ?? '',
+      ].join('|')).join('\n');
+
+      if (hash !== _lastWhisperHash) {
+        _lastWhisperHash = hash;
+        whisperData = fresh;
+        renderWhispers(whisperData);
+      }
+
       document.getElementById('footer').textContent =
         `Last updated ${new Date().toLocaleTimeString()} · auto-refreshes every 5s`;
     } catch {}
@@ -957,10 +1013,16 @@
       };
       fpSet('fp_positionSpread',        (c.fp_positionSpread        ?? D.positionSpread).toFixed(2));
       fpSet('fp_orbitSpread',           (c.fp_orbitSpread           ?? D.orbitSpread).toFixed(2));
-      fpSet('fp_breathinessSizeScale',  (c.fp_breathinessSizeScale  ?? D.breathinessSizeScale).toFixed(2),  '×');
-      fpSet('fp_darknessSizeScale',     (c.fp_darknessSizeScale     ?? D.darknessSizeScale).toFixed(2),     '×');
-      fpSet('fp_softnessSizeScale',     (c.fp_softnessSizeScale     ?? D.softnessSizeScale).toFixed(2),     '×');
-      fpSet('fp_pitchLownessSizeScale', (c.fp_pitchLownessSizeScale ?? D.pitchLownessSizeScale).toFixed(2), '×');
+      fpSet('fp_breathinessSizeScale',     (c.fp_breathinessSizeScale     ?? D.breathinessSizeScale).toFixed(2),     '×');
+      fpSet('fp_darknessSizeScale',        (c.fp_darknessSizeScale        ?? D.darknessSizeScale).toFixed(2),        '×');
+      fpSet('fp_softnessSizeScale',        (c.fp_softnessSizeScale        ?? D.softnessSizeScale).toFixed(2),        '×');
+      fpSet('fp_pitchLownessSizeScale',    (c.fp_pitchLownessSizeScale    ?? D.pitchLownessSizeScale).toFixed(2),    '×');
+      fpSet('fp_slownessSizeScale',        (c.fp_slownessSizeScale        ?? D.slownessSizeScale).toFixed(2),        '×');
+      fpSet('fp_pitchSteadinessSizeScale', (c.fp_pitchSteadinessSizeScale ?? D.pitchSteadinessSizeScale).toFixed(2), '×');
+      fpSet('fp_sensorySizeScale',         (c.fp_sensorySizeScale         ?? D.sensorySizeScale).toFixed(2),         '×');
+      fpSet('fp_tabooSizeScale',           (c.fp_tabooSizeScale           ?? D.tabooSizeScale).toFixed(2),           '×');
+      fpSet('fp_identitySizeScale',        (c.fp_identitySizeScale        ?? D.identitySizeScale).toFixed(2),        '×');
+      fpSet('fp_unspeakableSizeScale',     (c.fp_unspeakableSizeScale     ?? D.unspeakableSizeScale).toFixed(2),     '×');
       fpSet('fp_accentDotCount',        c.fp_accentDotCount        ?? D.accentDotCount);
       fpSet('fp_accentDotMaxSize',      c.fp_accentDotMaxSize      ?? D.accentDotMaxSize);
       fpSet('fp_particleBase',          c.fp_particleBase          ?? D.particleBase);
@@ -1017,10 +1079,16 @@
     return {
       positionSpread:        parseFloat(v('fp_positionSpread').value),
       orbitSpread:           parseFloat(v('fp_orbitSpread').value),
-      breathinessSizeScale:  parseFloat(v('fp_breathinessSizeScale').value),
-      darknessSizeScale:     parseFloat(v('fp_darknessSizeScale').value),
-      softnessSizeScale:     parseFloat(v('fp_softnessSizeScale').value),
-      pitchLownessSizeScale: parseFloat(v('fp_pitchLownessSizeScale').value),
+      breathinessSizeScale:     parseFloat(v('fp_breathinessSizeScale').value),
+      darknessSizeScale:        parseFloat(v('fp_darknessSizeScale').value),
+      softnessSizeScale:        parseFloat(v('fp_softnessSizeScale').value),
+      pitchLownessSizeScale:    parseFloat(v('fp_pitchLownessSizeScale').value),
+      slownessSizeScale:        parseFloat(v('fp_slownessSizeScale').value),
+      pitchSteadinessSizeScale: parseFloat(v('fp_pitchSteadinessSizeScale').value),
+      sensorySizeScale:         parseFloat(v('fp_sensorySizeScale').value),
+      tabooSizeScale:           parseFloat(v('fp_tabooSizeScale').value),
+      identitySizeScale:        parseFloat(v('fp_identitySizeScale').value),
+      unspeakableSizeScale:     parseFloat(v('fp_unspeakableSizeScale').value),
       accentDotCount:        parseInt(v('fp_accentDotCount').value)        || 0,
       accentDotMaxSize:      parseInt(v('fp_accentDotMaxSize').value)      || 5,
       particleBase:          parseInt(v('fp_particleBase').value)          || 0,
@@ -1046,10 +1114,16 @@
 
   function initFpControls() {
     const sliders = [
-      ['fp_breathinessSizeScale',  'fp_breathinessSizeScale_v',  '×'],
-      ['fp_darknessSizeScale',     'fp_darknessSizeScale_v',     '×'],
-      ['fp_softnessSizeScale',     'fp_softnessSizeScale_v',     '×'],
-      ['fp_pitchLownessSizeScale', 'fp_pitchLownessSizeScale_v', '×'],
+      ['fp_breathinessSizeScale',     'fp_breathinessSizeScale_v',     '×'],
+      ['fp_darknessSizeScale',        'fp_darknessSizeScale_v',        '×'],
+      ['fp_softnessSizeScale',        'fp_softnessSizeScale_v',        '×'],
+      ['fp_pitchLownessSizeScale',    'fp_pitchLownessSizeScale_v',    '×'],
+      ['fp_slownessSizeScale',        'fp_slownessSizeScale_v',        '×'],
+      ['fp_pitchSteadinessSizeScale', 'fp_pitchSteadinessSizeScale_v', '×'],
+      ['fp_sensorySizeScale',         'fp_sensorySizeScale_v',         '×'],
+      ['fp_tabooSizeScale',           'fp_tabooSizeScale_v',           '×'],
+      ['fp_identitySizeScale',        'fp_identitySizeScale_v',        '×'],
+      ['fp_unspeakableSizeScale',     'fp_unspeakableSizeScale_v',     '×'],
       ['fp_positionSpread',        'fp_positionSpread_v',        ''],
       ['fp_orbitSpread',           'fp_orbitSpread_v',           ''],
       ['fp_breatheStrength',       'fp_breatheStrength_v',       ''],
@@ -1081,10 +1155,16 @@
       const body = {
         fp_positionSpread:        cfg.positionSpread,
         fp_orbitSpread:           cfg.orbitSpread,
-        fp_breathinessSizeScale:  cfg.breathinessSizeScale,
-        fp_darknessSizeScale:     cfg.darknessSizeScale,
-        fp_softnessSizeScale:     cfg.softnessSizeScale,
-        fp_pitchLownessSizeScale: cfg.pitchLownessSizeScale,
+        fp_breathinessSizeScale:     cfg.breathinessSizeScale,
+        fp_darknessSizeScale:        cfg.darknessSizeScale,
+        fp_softnessSizeScale:        cfg.softnessSizeScale,
+        fp_pitchLownessSizeScale:    cfg.pitchLownessSizeScale,
+        fp_slownessSizeScale:        cfg.slownessSizeScale,
+        fp_pitchSteadinessSizeScale: cfg.pitchSteadinessSizeScale,
+        fp_sensorySizeScale:         cfg.sensorySizeScale,
+        fp_tabooSizeScale:           cfg.tabooSizeScale,
+        fp_identitySizeScale:        cfg.identitySizeScale,
+        fp_unspeakableSizeScale:     cfg.unspeakableSizeScale,
         fp_accentDotCount:        cfg.accentDotCount,
         fp_accentDotMaxSize:      cfg.accentDotMaxSize,
         fp_particleBase:          cfg.particleBase,

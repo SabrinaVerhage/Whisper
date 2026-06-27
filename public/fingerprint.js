@@ -10,26 +10,33 @@
    ─────────────────────────────────────────────────────────────────── */
 
 const FP_CFG_DEFAULTS = {
-  positionSpread:        0.55,  // 0 = tight cluster, 1 = spread to canvas edge
-  orbitSpread:           0.80,  // orbit radius scale per-blob value (0 = no orbit)
-  breathinessSizeScale:  1.0,
-  darknessSizeScale:     1.0,
-  softnessSizeScale:     1.0,
-  pitchLownessSizeScale: 1.0,
-  accentDotCount:        3,     // large accent dots (0 = disabled)
-  accentDotMaxSize:      28,    // px — max radius of a large accent dot
-  particleBase:          5,     // minimum sparkle particle count (duration adds up to 15 more)
-  particleFantasyScale:  0.8,   // how much the `fantasy` variable multiplies particle count (0 = ignore)
-  satelliteMax:          5,     // cap on satellite orb count (breathiness drives 2–max)
-  formingMs:             2500,  // FORMING phase duration
-  settlingMs:            2000,  // SETTLING phase duration
-  breatheStrength:       1.0,   // BREATHE multiplier (0 = frozen, 2 = strong)
-  maskInner:             55,    // % — fully visible up to this radius
-  maskOuter:             92,    // % — fades to transparent by this radius
-  maskShape:             'circle', // 'circle' (radial vignette) or 'rect' (rounded-rectangle vignette, fills more of the cell)
-  blendMode:             'screen', // 'screen' for dark bg, 'multiply' for light bg
-  showSemanticLabels:    false, // overlay tag names on semantic blobs when value > 0.5
-  semanticLabelColor:    '#ffffff',
+  positionSpread:           0.55,  // 0 = tight cluster, 1 = spread to canvas edge
+  orbitSpread:              0.80,  // orbit radius scale per-blob value (0 = no orbit)
+  breathinessSizeScale:     1.0,
+  darknessSizeScale:        1.0,
+  softnessSizeScale:        1.0,
+  pitchLownessSizeScale:    1.0,
+  slownessSizeScale:        1.0,   // solid dark-grey dot
+  pitchSteadinessSizeScale: 1.0,   // solid light-grey dot
+  sensorySizeScale:         1.0,   // pale-pink background bloom
+  tabooSizeScale:           1.0,   // dark wine blob
+  identitySizeScale:        1.0,   // white-gold anchor blob
+  unspeakableSizeScale:     1.0,   // near-black peripheral blob
+  accentDotCount:           3,     // large accent dots (0 = disabled)
+  accentDotMaxSize:         28,    // px — max radius of a large accent dot
+  particleBase:             5,     // minimum sparkle particle count (duration adds up to 15 more)
+  particleFantasyScale:     0.8,   // how much the `fantasy` variable multiplies particle count (0 = ignore)
+  satelliteMax:             5,     // cap on satellite orb count (breathiness drives 2–max)
+  formingMs:                2500,  // FORMING phase duration
+  settlingMs:               2000,  // SETTLING phase duration
+  breatheStrength:          1.0,   // BREATHE multiplier (0 = frozen, 2 = strong)
+  maskInner:                55,    // % — fully visible up to this radius
+  maskOuter:                92,    // % — fades to transparent by this radius
+  maskShape:                'circle', // 'circle' (radial vignette) or 'rect' (rounded-rectangle vignette, fills more of the cell)
+  blendMode:                'screen', // 'screen' for dark bg, 'multiply' for light bg
+  showSemanticLabels:       false, // overlay tag names on semantic blobs
+  semanticLabelColor:       '#ffffff',
+  semanticLabelThreshold:   0.5,   // min raw param value to draw a label (0 = always show)
 };
 
 class FingerprintRenderer {
@@ -174,62 +181,57 @@ class FingerprintRenderer {
     }
 
     // Sensory — soft pale-pink bloom drawn BEHIND everything else
-    if (sensoryStr > 0.05) {
-      this._semanticBlobs.push({
-        color: '#FF8FBF', _drawFirst: true,
-        radius:     R * (1.20 + sensoryStr * 0.80),
-        orbitR:     R * 0.04,
-        orbitAngle: 0,
-        orbitSpeed: 0.05,
-        breathFreq: 0.15,
-        wobble:     0.02 * cfg.breatheStrength,
-        opacity:    sensoryStr * 0.16,
-        restX: 0, restY: 0,
-      });
-    }
+    // Always added (even at 0 strength) so its label can appear when showSemanticLabels is on.
+    this._semanticBlobs.push({
+      color: '#FF8FBF', _drawFirst: true,
+      _tag: 'sensory', _rawValue: p.sensory,
+      radius:     R * (1.20 + sensoryStr * 0.80) * cfg.sensorySizeScale,
+      orbitR:     R * 0.04,
+      orbitAngle: 0,
+      orbitSpeed: 0.05,
+      breathFreq: 0.15,
+      wobble:     0.02 * cfg.breatheStrength,
+      opacity:    sensoryStr * 0.16,
+      restX: 0, restY: 0,
+    });
 
     // Taboo — dark wine at edge
-    if (tabooStr > 0.05) {
-      this._semanticBlobs.push({
-        color: '#6B003A', _tag: 'taboo',
-        radius:     R * tabooStr * 0.85,
-        orbitR:     R * 0.12,
-        orbitAngle: Math.PI * 0.4,
-        orbitSpeed: 0.10,
-        breathFreq: 0.25,
-        wobble:     0.04 * cfg.breatheStrength,
-        opacity:    0.30 + tabooStr * 0.40,
-      });
-    }
+    // Always added so its label position is stable regardless of score.
+    this._semanticBlobs.push({
+      color: '#6B003A', _tag: 'taboo', _rawValue: p.taboo,
+      radius:     R * tabooStr * 0.85 * cfg.tabooSizeScale,
+      orbitR:     R * 0.12,
+      orbitAngle: Math.PI * 0.4,
+      orbitSpeed: 0.10,
+      breathFreq: 0.25,
+      wobble:     0.04 * cfg.breatheStrength,
+      opacity:    0.30 + tabooStr * 0.40,
+    });
 
     // Identity — white-gold anchor at center
-    if (identityStr > 0.05) {
-      this._semanticBlobs.push({
-        color: '#FFE599', _tag: 'identity',
-        radius:     R * identityStr * 0.40,
-        orbitR:     R * 0.03,
-        orbitAngle: 0,
-        orbitSpeed: 0.06,
-        breathFreq: 0.35,
-        wobble:     0.03 * cfg.breatheStrength,
-        opacity:    0.55 + identityStr * 0.30,
-        restX: 0, restY: 0,
-      });
-    }
+    this._semanticBlobs.push({
+      color: '#FFE599', _tag: 'identity', _rawValue: p.identity,
+      radius:     R * identityStr * 0.40 * cfg.identitySizeScale,
+      orbitR:     R * 0.03,
+      orbitAngle: 0,
+      orbitSpeed: 0.06,
+      breathFreq: 0.35,
+      wobble:     0.03 * cfg.breatheStrength,
+      opacity:    0.55 + identityStr * 0.30,
+      restX: 0, restY: 0,
+    });
 
     // Unspeakable — near-black at periphery
-    if (unspStr > 0.05) {
-      this._semanticBlobs.push({
-        color: '#0D0010', _tag: 'unspeakable',
-        radius:     R * unspStr * 0.65,
-        orbitR:     R * 0.10,
-        orbitAngle: Math.PI * 1.6,
-        orbitSpeed: 0.08,
-        breathFreq: 0.20,
-        wobble:     0.03 * cfg.breatheStrength,
-        opacity:    0.55 + unspStr * 0.30,
-      });
-    }
+    this._semanticBlobs.push({
+      color: '#0D0010', _tag: 'unspeakable', _rawValue: p.unspeakable,
+      radius:     R * unspStr * 0.65 * cfg.unspeakableSizeScale,
+      orbitR:     R * 0.10,
+      orbitAngle: Math.PI * 1.6,
+      orbitSpeed: 0.08,
+      breathFreq: 0.20,
+      wobble:     0.03 * cfg.breatheStrength,
+      opacity:    0.55 + unspStr * 0.30,
+    });
 
     // Fixed resting positions — wider spread driven by positionSpread config
     const restRng = this._rng(str + '_rest');
@@ -301,7 +303,7 @@ class FingerprintRenderer {
     this._solidDots = [
       {
         color:      '#c8c8c8',                               // light grey — pitchSteadiness
-        radius:     R * (0.055 + p.pitchSteadiness * 0.105),
+        radius:     R * (0.055 + p.pitchSteadiness * 0.105) * cfg.pitchSteadinessSizeScale,
         orbitR:     R * 0.055, orbitAngle: sdOA0, orbitSpeed: sdOS0,
         breathFreq: 0.42 + p.slowness * 0.22,
         wobble:     0.028 * cfg.breatheStrength,
@@ -311,7 +313,7 @@ class FingerprintRenderer {
       },
       {
         color:      '#4a4a60',                               // dark grey — slowness
-        radius:     R * (0.070 + p.slowness * 0.12),
+        radius:     R * (0.070 + p.slowness * 0.12) * cfg.slownessSizeScale,
         orbitR:     R * 0.040, orbitAngle: sdOA1, orbitSpeed: sdOS1,
         breathFreq: 0.28 + p.slowness * 0.18,
         wobble:     0.022 * cfg.breatheStrength,
@@ -462,6 +464,9 @@ class FingerprintRenderer {
 
   _drawSemanticLabel(ctx, blob, t, settleEase, shrinkMs) {
     if (!blob._tag || settleEase <= 0) return;
+    // Respect threshold — skip if raw param value is below the configured minimum.
+    // semanticLabelThreshold: 0 = always show, 0.5 = only show when score is notable.
+    if (blob._rawValue != null && blob._rawValue < this._cfg.semanticLabelThreshold) return;
     const sf = this._sf(blob, shrinkMs);
     if (sf <= 0) return;
     const orbitX = Math.cos(t * (blob.orbitSpeed || 0.1) + (blob.orbitAngle || 0)) * (blob.orbitR || 0);
@@ -470,6 +475,9 @@ class FingerprintRenderer {
     const oy = (orbitY * (1 - settleEase) + (blob.restY ?? 0) * settleEase) * sf;
     const R = Math.min(this._canvas.width, this._canvas.height) * 0.5;
     const fontSize = Math.max(10, Math.round(R * 0.09));
+    const label = blob._rawValue != null
+      ? `${blob._tag} ${blob._rawValue.toFixed(2)}`
+      : blob._tag;
     ctx.save();
     ctx.globalCompositeOperation = 'source-over';
     ctx.globalAlpha = settleEase * sf * 0.72;
@@ -478,7 +486,7 @@ class FingerprintRenderer {
     ctx.fillStyle = this._cfg.semanticLabelColor;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText(blob._tag, ox, oy);
+    ctx.fillText(label, ox, oy);
     ctx.restore();
   }
 
@@ -621,24 +629,32 @@ function buildFingerprintConfig(serverConfig) {
   const c = serverConfig || {};
   const d = FP_CFG_DEFAULTS;
   return {
-    positionSpread:        c.fp_positionSpread        ?? d.positionSpread,
-    orbitSpread:           c.fp_orbitSpread           ?? d.orbitSpread,
-    breathinessSizeScale:  c.fp_breathinessSizeScale  ?? d.breathinessSizeScale,
-    darknessSizeScale:     c.fp_darknessSizeScale     ?? d.darknessSizeScale,
-    softnessSizeScale:     c.fp_softnessSizeScale     ?? d.softnessSizeScale,
-    pitchLownessSizeScale: c.fp_pitchLownessSizeScale ?? d.pitchLownessSizeScale,
-    accentDotCount:        c.fp_accentDotCount        ?? d.accentDotCount,
-    accentDotMaxSize:      c.fp_accentDotMaxSize      ?? d.accentDotMaxSize,
-    particleBase:          c.fp_particleBase          ?? d.particleBase,
-    particleFantasyScale:  c.fp_particleFantasyScale  ?? d.particleFantasyScale,
-    satelliteMax:          c.fp_satelliteMax          ?? d.satelliteMax,
-    formingMs:             c.fp_formingMs             ?? d.formingMs,
-    settlingMs:            c.fp_settlingMs            ?? d.settlingMs,
-    breatheStrength:       c.fp_breatheStrength       ?? d.breatheStrength,
-    maskInner:             c.fp_maskInner             ?? d.maskInner,
-    maskOuter:             c.fp_maskOuter             ?? d.maskOuter,
-    maskShape:             c.fp_maskShape             ?? d.maskShape,
-    blendMode:             c.blendMode                ?? d.blendMode,
-    showSemanticLabels:    c.fp_showSemanticLabels    ?? d.showSemanticLabels,
+    positionSpread:           c.fp_positionSpread           ?? d.positionSpread,
+    orbitSpread:              c.fp_orbitSpread              ?? d.orbitSpread,
+    breathinessSizeScale:     c.fp_breathinessSizeScale     ?? d.breathinessSizeScale,
+    darknessSizeScale:        c.fp_darknessSizeScale        ?? d.darknessSizeScale,
+    softnessSizeScale:        c.fp_softnessSizeScale        ?? d.softnessSizeScale,
+    pitchLownessSizeScale:    c.fp_pitchLownessSizeScale    ?? d.pitchLownessSizeScale,
+    slownessSizeScale:        c.fp_slownessSizeScale        ?? d.slownessSizeScale,
+    pitchSteadinessSizeScale: c.fp_pitchSteadinessSizeScale ?? d.pitchSteadinessSizeScale,
+    sensorySizeScale:         c.fp_sensorySizeScale         ?? d.sensorySizeScale,
+    tabooSizeScale:           c.fp_tabooSizeScale           ?? d.tabooSizeScale,
+    identitySizeScale:        c.fp_identitySizeScale        ?? d.identitySizeScale,
+    unspeakableSizeScale:     c.fp_unspeakableSizeScale     ?? d.unspeakableSizeScale,
+    accentDotCount:           c.fp_accentDotCount           ?? d.accentDotCount,
+    accentDotMaxSize:         c.fp_accentDotMaxSize         ?? d.accentDotMaxSize,
+    particleBase:             c.fp_particleBase             ?? d.particleBase,
+    particleFantasyScale:     c.fp_particleFantasyScale     ?? d.particleFantasyScale,
+    satelliteMax:             c.fp_satelliteMax             ?? d.satelliteMax,
+    formingMs:                c.fp_formingMs                ?? d.formingMs,
+    settlingMs:               c.fp_settlingMs               ?? d.settlingMs,
+    breatheStrength:          c.fp_breatheStrength          ?? d.breatheStrength,
+    maskInner:                c.fp_maskInner                ?? d.maskInner,
+    maskOuter:                c.fp_maskOuter                ?? d.maskOuter,
+    maskShape:                c.fp_maskShape                ?? d.maskShape,
+    blendMode:                c.blendMode                   ?? d.blendMode,
+    showSemanticLabels:       c.fp_showSemanticLabels       ?? d.showSemanticLabels,
+    semanticLabelColor:       c.fp_semanticLabelColor       ?? d.semanticLabelColor,
+    semanticLabelThreshold:   c.fp_semanticLabelThreshold   ?? d.semanticLabelThreshold,
   };
 }

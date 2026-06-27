@@ -652,7 +652,6 @@ async function startAnalyzing() {
       sensuality:      record.sensuality ? Math.round(record.sensuality.score * 100) : null,
       levels:          draft ? draft.levels : [],
       duration:        draft ? draft.duration : 4,
-      whisperizedFile:      record.whisperizedFile      || null,
       generatedWhisperFile: record.generatedWhisperFile || null,
     };
     lastFingerprintParams = buildFingerprintParams(record);
