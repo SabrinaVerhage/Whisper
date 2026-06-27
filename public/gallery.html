@@ -331,7 +331,7 @@
       if (params && wIdx - 1 < n) {
         const w = whispers[(wIdx - 1) % n];
         wspr.textContent = w.wspr ?? w.id?.slice(-4) ?? '';
-        const txt = (w.llm?.rephrased ?? w.transcript ?? '').trim();
+        const txt = (w.llm?.rephrased ?? '').trim();
         phrase.textContent = txt.length > 55 ? txt.slice(0, 55) + '…' : txt;
       }
 

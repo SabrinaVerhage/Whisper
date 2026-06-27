@@ -312,6 +312,13 @@
         <span class="fp-var-val" id="fp_maskOuter_v">92%</span>
       </div>
 
+      <div class="fp-var-row" style="margin-top:10px">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+          <input type="checkbox" id="fp_showSemanticLabels">
+          <span class="fp-var-label" style="margin:0">semantic labels</span>
+        </label>
+      </div>
+
       <div class="row">
         <button onclick="saveFingerprintConfig()">Save fingerprint</button>
         <span class="flash" id="fpFlash">Saved</span>
@@ -910,6 +917,8 @@
       fpSet('fp_breatheStrength',       (c.fp_breatheStrength ?? D.breatheStrength).toFixed(2));
       fpSet('fp_maskInner',             c.fp_maskInner ?? D.maskInner, '%');
       fpSet('fp_maskOuter',             c.fp_maskOuter ?? D.maskOuter, '%');
+      const lblEl = document.getElementById('fp_showSemanticLabels');
+      if (lblEl) lblEl.checked = c.fp_showSemanticLabels ?? D.showSemanticLabels;
       refreshFpPreview();
     } catch {}
   }
@@ -942,8 +951,8 @@
   const FP_PREVIEW_PARAMS = {
     breathiness: 0.75, darkness: 0.60, softness: 0.40, slowness: 0.35,
     pitchLowness: 0.70, pitchSteadiness: 0.45, amplitude: 0.55, duration: 10,
-    sensory: 0.65, relational: 0.30, taboo: 0.20, tenderness: 0.45,
-    fantasy: 0.55, identity: 0.25, longing: 0.60, unspeakable: 0.15,
+    sensory: 0.65, relational: 0.30, taboo: 0.72, tenderness: 0.45,
+    fantasy: 0.55, identity: 0.68, longing: 0.60, unspeakable: 0.15,
     seed: 'admin-preview',
   };
 
@@ -968,6 +977,7 @@
       breatheStrength:       parseFloat(v('fp_breatheStrength').value),
       maskInner:             parseInt(v('fp_maskInner').value)         || 55,
       maskOuter:             parseInt(v('fp_maskOuter').value)         || 92,
+      showSemanticLabels:    v('fp_showSemanticLabels').checked,
     };
   }
 
@@ -1007,6 +1017,8 @@
       const el = document.getElementById(id);
       if (el) el.addEventListener('input', refreshFpPreview);
     });
+    const lblEl = document.getElementById('fp_showSemanticLabels');
+    if (lblEl) lblEl.addEventListener('change', refreshFpPreview);
   }
 
   async function saveFingerprintConfig() {
@@ -1029,6 +1041,7 @@
         fp_breatheStrength:       cfg.breatheStrength,
         fp_maskInner:             cfg.maskInner,
         fp_maskOuter:             cfg.maskOuter,
+        fp_showSemanticLabels:    cfg.showSemanticLabels,
       };
       await fetch('/config', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
       const flash = document.getElementById('fpFlash');

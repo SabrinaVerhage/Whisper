@@ -70,7 +70,6 @@ let enc   = null;   // { id, wspr, fieldX, fieldY, sensuality, levels, duration 
 
 let recordedLevels   = [];
 let lastLevelAt      = 0;
-let fieldStopper     = null;
 let liveSISmooth     = 0;
 let recordingStartedAt = 0;
 let recordPressedAt  = 0;
@@ -87,15 +86,6 @@ let cachedStream = null;
 
 /* ── persistent circle state ────────────────────────────────────── */
 let circleBuilt = false;
-
-/* ── field navigation (joystick + WS) ──────────────────────────── */
-let fieldWs       = null;
-let lensX         = 0.5, lensY = 0.5;
-let joystickVx    = 0, joystickVy = 0;
-let joystickActive = false;
-let fieldNavTimer  = null;
-let joystickAbort    = null;
-let dragHandleAbort  = null;
 
 /* ── Fingerprint state ──────────────────────────────────────────── */
 let currentFingerprint    = null;
@@ -297,13 +287,13 @@ function buildCircleAura() {
 }
 
 /* ── Screen state machine ───────────────────────────────────────── */
-const SCREENS = ['splash', 'record', 'analyzing', 'field'];
+const SCREENS = ['splash', 'record', 'analyzing', 'done'];
 
 const SCREEN_SPEED = {
   splash:    0.10,
   record:    0.18,
   analyzing: 0.20,
-  field:     0.08,
+  done:      0.08,
 };
 
 function showScreen(id) {
@@ -356,105 +346,10 @@ function showScreen(id) {
   }
 
   if (id === 'analyzing') startAnalyzing();
-  if (id === 'field')     renderFieldScreen();
+  if (id === 'done')      renderDoneScreen();
 }
 
 /* ── Web Audio synthesis ────────────────────────────────────────── */
-function makeNoise(ctx, sec = 2) {
-  const buf = ctx.createBuffer(1, ctx.sampleRate * sec, ctx.sampleRate);
-  const d   = buf.getChannelData(0);
-  for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
-  return buf;
-}
-
-function playWhisper({ duration = 4, levels = [], audioUrl = null, onProgress, onEnd }) {
-  if (audioUrl) {
-    let src = null, raf, stopped = false;
-    const ctx = getAC();
-    fetch(audioUrl)
-      .then(r => r.arrayBuffer())
-      .then(buf => ctx.decodeAudioData(buf))
-      .then(decoded => {
-        if (stopped) return;
-        src = ctx.createBufferSource();
-        src.buffer = decoded;
-        src.connect(ctx.destination);
-        const t0  = ctx.currentTime + 0.02;
-        const dur = decoded.duration;
-        src.start(t0);
-        const tick = () => {
-          if (stopped) return;
-          const p = Math.min(1, (ctx.currentTime - t0) / dur);
-          onProgress && onProgress(p);
-          if (p >= 1) { onEnd && onEnd(); return; }
-          raf = requestAnimationFrame(tick);
-        };
-        raf = requestAnimationFrame(tick);
-        src.onended = () => {
-          if (!stopped) { stopped = true; cancelAnimationFrame(raf); onEnd && onEnd(); }
-        };
-      })
-      .catch(() => {
-        if (!stopped) playWhisper({ duration, levels, onProgress, onEnd });
-      });
-    return () => {
-      stopped = true;
-      if (raf) cancelAnimationFrame(raf);
-      try { src && src.stop(); } catch {}
-      onEnd && onEnd();
-    };
-  }
-
-  const ctx = getAC();
-  const t0  = ctx.currentTime + 0.02;
-
-  const src  = ctx.createBufferSource(); src.buffer = makeNoise(ctx); src.loop = true;
-  const hp   = ctx.createBiquadFilter(); hp.type = 'highpass';  hp.frequency.value = 380;
-  const bp   = ctx.createBiquadFilter(); bp.type = 'bandpass';  bp.frequency.value = 1500; bp.Q.value = 1.1;
-  const peak = ctx.createBiquadFilter(); peak.type = 'peaking'; peak.frequency.value = 2400; peak.gain.value = 6; peak.Q.value = 0.8;
-  const env    = ctx.createGain(); env.gain.value = 0.0001;
-  const master = ctx.createGain(); master.gain.value = 0.9;
-  src.connect(hp); hp.connect(bp); bp.connect(peak); peak.connect(env); env.connect(master); master.connect(ctx.destination);
-
-  const lfo     = ctx.createOscillator(); lfo.frequency.value = 0.6;
-  const lfoGain = ctx.createGain(); lfoGain.gain.value = 520;
-  lfo.connect(lfoGain); lfoGain.connect(bp.frequency); lfo.start(t0);
-
-  let t = t0, i = 0;
-  env.gain.setValueAtTime(0.0001, t0);
-  while (t < t0 + duration) {
-    const lv  = levels.length ? levels[i % levels.length] : 0.4 + Math.random() * 0.5;
-    const amp = 0.05 + lv * 0.9;
-    const syl = 0.10 + Math.random() * 0.16;
-    const gap = 0.02 + Math.random() * 0.10;
-    env.gain.setValueAtTime(Math.max(0.0001, env.gain.value), t);
-    env.gain.linearRampToValueAtTime(amp, t + syl * 0.4);
-    env.gain.linearRampToValueAtTime(0.02, t + syl);
-    t += syl + gap; i++;
-  }
-  env.gain.linearRampToValueAtTime(0.0001, t0 + duration);
-  src.start(t0); src.stop(t0 + duration + 0.05);
-
-  let raf, stopped = false;
-  const tick = () => {
-    if (stopped) return;
-    const p = Math.min(1, (ctx.currentTime - t0) / duration);
-    onProgress && onProgress(p);
-    if (p >= 1) { onEnd && onEnd(); return; }
-    raf = requestAnimationFrame(tick);
-  };
-  raf = requestAnimationFrame(tick);
-  src.onended = () => {
-    if (!stopped) { stopped = true; cancelAnimationFrame(raf); onEnd && onEnd(); }
-  };
-  return () => {
-    stopped = true; cancelAnimationFrame(raf);
-    try { src.stop(); } catch (e) {}
-    try { lfo.stop(); } catch (e) {}
-    onEnd && onEnd();
-  };
-}
-
 /* ── genLevels ──────────────────────────────────────────────────── */
 function genLevels(sec) {
   const n = Math.max(20, Math.round(sec * 9));
@@ -557,7 +452,7 @@ async function startRecording() {
 
   document.getElementById('recIndicator').classList.add('visible');
   document.getElementById('backButton').style.visibility = 'hidden';
-  document.getElementById('recordCtaHeadline').textContent = 'whispering…';
+  document.getElementById('recordCtaHeadline').textContent = 'confessing…';
   document.getElementById('recordCtaSub').textContent      = 'release to stop';
   document.getElementById('liveSIScore')?.classList.add('recording');
 
@@ -593,8 +488,8 @@ function abortRecording() {
   chunks = [];
   document.getElementById('recIndicator').classList.remove('visible');
   document.getElementById('backButton').style.visibility = '';
-  document.getElementById('recordCtaHeadline').textContent = 'hold to whisper';
-  document.getElementById('recordCtaSub').textContent = 'press and hold the circle';
+  document.getElementById('recordCtaHeadline').textContent = 'hold to confess';
+  document.getElementById('recordCtaSub').textContent = 'no one will know';
   document.getElementById('liveSIScore')?.classList.remove('recording');
   // Restore circle to breathing state
   updateLiveAura(0);
@@ -605,10 +500,10 @@ function abortRecording() {
 
 function showRecordHint() {
   const sub = document.getElementById('recordCtaSub');
-  sub.textContent = 'hold a little longer…';
+  sub.textContent = 'keep going…';
   setTimeout(() => {
     if (currentScreen === 'record' && !isRecording) {
-      sub.textContent = 'press and hold the circle';
+      sub.textContent = 'no one will know';
     }
   }, 2000);
 }
@@ -740,7 +635,7 @@ async function startAnalyzing() {
   startFingerprintOnCanvas(roughParams);
 
   const headline = document.getElementById('analyzingHeadline');
-  if (headline) headline.innerHTML = 'generating your<br>unique fingerprint';
+  if (headline) headline.innerHTML = 'generating your<br>desire fingerprint';
 
   let record = null;
   try {
@@ -781,38 +676,8 @@ async function startAnalyzing() {
   // so the user always sees the fully settled fingerprint before the shrink.
   await new Promise(r => setTimeout(r, 6000));
 
-  // Slide dot to field position while fingerprint shrinks
-  circleAddClass('');
-  setCircle({
-    x: enc.fieldX,
-    y: enc.fieldY,
-    transition: [
-      'left 0.75s cubic-bezier(0.4,0,0.2,1)',
-      'top 0.75s cubic-bezier(0.4,0,0.2,1)',
-      'width 0.4s ease',
-      'height 0.4s ease',
-      'opacity 0.35s ease',
-      'background 0.4s ease',
-      'box-shadow 0.4s ease',
-    ].join(', '),
-  });
-
-  // Shrink fingerprint into dot, then transition to field
-  const afterShrink = () => {
-    stopFingerprintOnCanvas();
-    showScreen('field');
-    setTimeout(() => {
-      const fieldDot = document.querySelector('.field-dot');
-      if (fieldDot) fieldDot.style.opacity = '1';
-      setCircle({ opacity: 0, transition: 'opacity 0.35s ease' });
-    }, 780);
-  };
-
-  if (currentFingerprint) {
-    currentFingerprint.shrink(afterShrink);
-  } else {
-    afterShrink();
-  }
+  stopFingerprintOnCanvas();
+  showScreen('done');
 }
 
 function buildRoughFingerprintParams(features, draftData) {
@@ -858,18 +723,20 @@ function stopFingerprintOnCanvas() {
   const fpCanvas = document.getElementById('fingerprintCanvas');
   if (fpCanvas) fpCanvas.hidden = true;
   const headline = document.getElementById('analyzingHeadline');
-  if (headline) headline.innerHTML = 'listening to<br>your whisper…';
+  if (headline) headline.innerHTML = 'listening to<br>your secret…';
 }
 
-function replayFingerprint() {
+function renderDoneScreen() {
+  if (!enc) return;
+  document.getElementById('fieldCode').textContent = enc.wspr;
+  startFingerprintOnDoneCanvas();
+  setCircle({ opacity: 0, transition: 'opacity 0.35s ease' });
+}
+
+function startFingerprintOnDoneCanvas() {
   if (!lastFingerprintParams) return;
-  const screen = document.getElementById('screen-field');
-  if (!screen) return;
-
-  document.querySelector('.fp-replay-canvas')?.remove();
-
-  const canvas = document.createElement('canvas');
-  canvas.className = 'fp-replay-canvas';
+  const canvas = document.getElementById('doneCanvas');
+  if (!canvas) return;
   const shell = document.querySelector('.app-shell');
   const dpr   = Math.min(window.devicePixelRatio || 1, 2);
   const sw    = shell?.offsetWidth  || 390;
@@ -878,25 +745,10 @@ function replayFingerprint() {
   canvas.height       = Math.round(sh * dpr);
   canvas.style.width  = sw + 'px';
   canvas.style.height = sh + 'px';
-  screen.appendChild(canvas);
-
-  // Hide replay button while animation is playing
-  const replayBtn = document.getElementById('replayButton');
-  if (replayBtn) replayBtn.hidden = true;
-
+  canvas.hidden = false;
   if (currentFingerprint) currentFingerprint.stop();
   currentFingerprint = new FingerprintRenderer(canvas, lastFingerprintParams, _recorderFpCfg);
   currentFingerprint.start();
-
-  // 7500ms: form(2500) + settle(2000) + rested view(3000) before shrink
-  setTimeout(() => {
-    if (!currentFingerprint) return;
-    currentFingerprint.shrink(() => {
-      canvas.remove();
-      currentFingerprint = null;
-      if (replayBtn) replayBtn.hidden = false;
-    });
-  }, 7500);
 }
 
 function clientHash(draftData) {
@@ -931,371 +783,6 @@ async function saveWhisperToServer() {
   });
   if (!res.ok) throw new Error('Server save failed: ' + res.status);
   return res.json();
-}
-
-/* ── Field screen ───────────────────────────────────────────────── */
-function renderFieldScreen() {
-  if (!enc) return;
-
-  document.getElementById('fieldConfirmState').hidden = false;
-  document.getElementById('fieldReceiptState').hidden = true;
-  document.getElementById('fieldTopLabels').hidden    = true;
-  // Ensure card is never stuck off-screen from a previous confirm animation
-  document.querySelector('.field-overlay-card')?.classList.remove('card--hidden');
-
-  renderFieldDot(enc.fieldX, enc.fieldY, enc.wspr, enc.sensuality);
-}
-
-function renderFieldDot(x, y, wspr, sensuality) {
-  const overlay = document.getElementById('fieldMapOverlay');
-  overlay.querySelectorAll(
-    '.field-crosshair-v, .field-crosshair-h, .field-dot, .field-dot-label'
-  ).forEach(e => e.remove());
-
-  const vline = document.createElement('div');
-  vline.className = 'field-crosshair-v';
-  vline.style.left = x + '%';
-  overlay.appendChild(vline);
-
-  const hline = document.createElement('div');
-  hline.className = 'field-crosshair-h';
-  hline.style.top = y + '%';
-  overlay.appendChild(hline);
-
-  const dot = document.createElement('div');
-  dot.className  = 'field-dot';
-  dot.style.left = x + '%';
-  dot.style.top  = y + '%';
-  const playSpan = document.createElement('span');
-  playSpan.className = 'field-dot-play';
-  playSpan.innerHTML = `<svg width="22" height="22" viewBox="0 0 24 24"><path d="M8 5l11 7-11 7V5z" fill="#fff"/></svg>`;
-  dot.appendChild(playSpan);
-  overlay.appendChild(dot);
-
-  const label = document.createElement('div');
-  label.className = 'field-dot-label';
-  label.style.left = x + '%';
-  label.style.top  = y + '%';
-  const siPart = sensuality !== null ? ` · ${sensuality}%` : '';
-  label.textContent = `WSPR·${wspr}${siPart}`;
-  label.style.transform = x > 55
-    ? 'translate(calc(-100% - 14px), -50%)'
-    : 'translate(14px, -50%)';
-  overlay.appendChild(label);
-}
-
-function confirmWhisper() {
-  const dot = document.querySelector('.field-dot');
-  if (dot) dot.classList.add('field-dot--center');
-
-  document.querySelectorAll('.field-crosshair-h, .field-crosshair-v')
-    .forEach(el => { el.style.opacity = '0'; el.style.transition = 'opacity 0.4s'; });
-
-  const card = document.querySelector('.field-overlay-card');
-  card.classList.add('card--hidden');
-
-  setTimeout(() => {
-    document.getElementById('fieldConfirmState').hidden = true;
-    document.getElementById('fieldReceiptState').hidden = false;
-    document.getElementById('fieldTopLabels').hidden    = false;
-
-    document.getElementById('fieldCode').textContent = enc.wspr;
-    document.getElementById('fieldSensualityLabel').textContent =
-      enc.sensuality !== null ? `${enc.sensuality}% sensuality` : '';
-    document.getElementById('emailInputRow').hidden = false;
-    document.getElementById('emailSent').hidden     = true;
-    document.getElementById('emailInput').value     = '';
-    initFieldNav(enc);
-
-    card.classList.remove('card--hidden');
-
-    // Animate top labels in
-    document.querySelectorAll('#fieldTopLabels .anim-in').forEach((el, i) => {
-      el.classList.remove('animated');
-      setTimeout(() => el.classList.add('animated'), i * 80 + 30);
-    });
-  }, 280);
-
-  shaderSpeed     = 0.04;
-  shaderAmplitude = 0;
-
-  setTimeout(() => {
-    if (dot) dot.addEventListener('click', toggleFieldPlay);
-  }, 650);
-}
-
-async function retryWhisper() {
-  if (fieldStopper) { fieldStopper(); fieldStopper = null; }
-  stopFingerprintOnCanvas();
-  cleanupFieldNav();
-
-  // Delete previous whisper in background
-  if (enc && enc.id) {
-    fetch('/whispers/' + enc.id, { method: 'DELETE' }).catch(() => {});
-  }
-
-  // Reset persistent circle for re-entry
-  setCircle({ size: 0, opacity: 0, instant: true });
-  circleBuilt = false;
-  const auraEl = document.getElementById('persistentCircleAura');
-  if (auraEl) {
-    auraEl.style.opacity = '0';
-    delete auraEl.dataset.built;
-    auraEl.innerHTML = '';
-  }
-
-  draft = null;
-  enc   = null;
-  recordedLevels = [];
-  liveSISmooth   = 0;
-
-  showScreen('record');
-
-  // Request mic (user gesture still active from retry button click)
-  try {
-    cachedStream = await navigator.mediaDevices.getUserMedia({
-      audio: { echoCancellation: true, noiseSuppression: false, autoGainControl: false },
-    });
-  } catch (err) {
-    document.getElementById('recordCtaSub').textContent =
-      'Microphone access needed — check browser settings';
-  }
-}
-
-function setFieldPlayIcon(playing) {
-  const el = document.querySelector('.field-dot-play');
-  if (!el) return;
-  el.innerHTML = playing
-    ? `<svg width="22" height="22" viewBox="0 0 24 24"><rect x="6" y="5" width="4" height="14" rx="1.5" fill="#fff"/><rect x="14" y="5" width="4" height="14" rx="1.5" fill="#fff"/></svg>`
-    : `<svg width="22" height="22" viewBox="0 0 24 24"><path d="M8 5l11 7-11 7V5z" fill="#fff"/></svg>`;
-}
-
-function toggleFieldPlay() {
-  // Tap feedback: quick shrink-and-spring on the dot
-  const dot = document.querySelector('.field-dot--center');
-  if (dot) {
-    dot.style.transform = 'scale(0.86)';
-    setTimeout(() => { if (dot) dot.style.transform = 'scale(1)'; }, 110);
-  }
-  if (fieldStopper) {
-    fieldStopper(); fieldStopper = null;
-    setFieldPlayIcon(false);
-    return;
-  }
-  setFieldPlayIcon(true);
-  replayFingerprint();
-  const audioUrl = enc.generatedWhisperFile ? '/' + enc.generatedWhisperFile
-                 : enc.whisperizedFile      ? '/' + enc.whisperizedFile
-                 : null;
-  fieldStopper = playWhisper({
-    duration: enc.duration,
-    levels:   enc.levels,
-    audioUrl,
-    onEnd:    () => { fieldStopper = null; setFieldPlayIcon(false); },
-  });
-}
-
-/* ── Field navigation ───────────────────────────────────────────── */
-function initFieldNav(encData) {
-  lensX = Math.max(0, Math.min(1, (encData.fieldX ?? 50) / 100));
-  lensY = Math.max(0, Math.min(1, (encData.fieldY ?? 50) / 100));
-
-  document.getElementById('fieldNav').hidden = false;
-
-  const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
-  fieldWs = new WebSocket(`${proto}//${location.host}/ws?type=phone`);
-
-  fieldWs.onopen = () => {
-    fieldWs.send(JSON.stringify({
-      type: 'join',
-      whisperX: encData.fieldX ?? 50,
-      whisperY: encData.fieldY ?? 50,
-    }));
-  };
-  fieldWs.onmessage = ({ data }) => {
-    try {
-      const msg = JSON.parse(data);
-      if (msg.type === 'nearby') renderNearbyWhispers(msg.whispers || []);
-    } catch {}
-  };
-  fieldWs.onerror  = () => {};
-  fieldWs.onclose  = () => {};
-
-  clearInterval(fieldNavTimer);
-  fieldNavTimer = setInterval(sendLensPosition, 80);
-
-  wireJoystick();
-  wireDragHandle();
-}
-
-function cleanupFieldNav() {
-  clearInterval(fieldNavTimer);
-  fieldNavTimer = null;
-  joystickActive = false;
-  joystickVx = 0; joystickVy = 0;
-  if (joystickAbort)   { joystickAbort.abort();   joystickAbort   = null; }
-  if (dragHandleAbort) { dragHandleAbort.abort(); dragHandleAbort = null; }
-  if (fieldWs) {
-    try { fieldWs.close(); } catch {}
-    fieldWs = null;
-  }
-  const fieldNav = document.getElementById('fieldNav');
-  if (fieldNav) fieldNav.hidden = true;
-  const pt = document.getElementById('passingThrough');
-  if (pt) pt.hidden = true;
-  const card = document.querySelector('.field-overlay-card');
-  if (card) { card.classList.remove('collapsed'); card.style.transform = ''; }
-  if (currentFingerprint) { currentFingerprint.stop(); currentFingerprint = null; }
-  document.querySelector('.fp-replay-canvas')?.remove();
-}
-
-function sendLensPosition() {
-  if (!fieldWs || fieldWs.readyState !== WebSocket.OPEN) return;
-  if (joystickActive) {
-    lensX = Math.max(0, Math.min(1, lensX + joystickVx * 0.008));
-    lensY = Math.max(0, Math.min(1, lensY + joystickVy * 0.008));
-  }
-  fieldWs.send(JSON.stringify({ type: 'move', x: lensX, y: lensY }));
-}
-
-function wireJoystick() {
-  const outer = document.getElementById('joystickOuter');
-  const knob  = document.getElementById('joystickKnob');
-  if (!outer || !knob) return;
-
-  if (joystickAbort) joystickAbort.abort();
-  joystickAbort = new AbortController();
-  const { signal } = joystickAbort;
-
-  const MAX_D = 58; // max displacement from center in px
-
-  function getOffset(e) {
-    const rect  = outer.getBoundingClientRect();
-    const cx    = rect.left + rect.width  / 2;
-    const cy    = rect.top  + rect.height / 2;
-    const touch = e.touches ? e.touches[0] : e;
-    let dx = touch.clientX - cx, dy = touch.clientY - cy;
-    const dist = Math.sqrt(dx * dx + dy * dy);
-    if (dist > MAX_D) { dx = dx / dist * MAX_D; dy = dy / dist * MAX_D; }
-    return { dx, dy, vx: dx / MAX_D, vy: dy / MAX_D };
-  }
-
-  function onStart(e) { e.preventDefault(); joystickActive = true; knob.classList.add('dragging'); }
-  function onMove(e) {
-    e.preventDefault();
-    if (!joystickActive) return;
-    const { dx, dy, vx, vy } = getOffset(e);
-    knob.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
-    joystickVx = vx; joystickVy = vy;
-  }
-  function onEnd(e) {
-    e.preventDefault();
-    joystickActive = false; joystickVx = 0; joystickVy = 0;
-    knob.classList.remove('dragging');
-    knob.style.transform = 'translate(-50%, -50%)';
-  }
-
-  outer.addEventListener('touchstart',  onStart, { passive: false, signal });
-  outer.addEventListener('touchmove',   onMove,  { passive: false, signal });
-  outer.addEventListener('touchend',    onEnd,   { passive: false, signal });
-  outer.addEventListener('touchcancel', onEnd,   { passive: false, signal });
-  outer.addEventListener('mousedown',  onStart, { signal });
-  window.addEventListener('mousemove', e => { if (joystickActive) onMove(e); }, { signal });
-  window.addEventListener('mouseup',   e => { if (joystickActive) onEnd(e); }, { signal });
-}
-
-function wireDragHandle() {
-  const card   = document.querySelector('.field-overlay-card');
-  const handle = document.getElementById('cardDragHandle');
-  if (!card || !handle) return;
-
-  if (dragHandleAbort) dragHandleAbort.abort();
-  dragHandleAbort = new AbortController();
-  const { signal } = dragHandleAbort;
-
-  let startY = null, startTranslateY = 0, dragging = false, didDrag = false;
-
-  function getTranslateY() {
-    const m = new DOMMatrix(getComputedStyle(card).transform);
-    return m.m42;
-  }
-
-  function getCollapsedY() {
-    return card.offsetHeight - 64;
-  }
-
-  function toggle() {
-    card.style.transform = '';
-    card.classList.toggle('collapsed');
-  }
-
-  function onStart(e) {
-    startY = (e.touches ? e.touches[0] : e).clientY;
-    startTranslateY = getTranslateY();
-    dragging = true;
-    didDrag  = false;
-    card.style.transition = 'none';
-  }
-
-  function onMove(e) {
-    if (!dragging) return;
-    const dy = (e.touches ? e.touches[0] : e).clientY - startY;
-    if (Math.abs(dy) > 6) didDrag = true;
-    if (!didDrag) return;
-    e.preventDefault();
-    const raw = Math.max(0, startTranslateY + dy);
-    card.style.transform = `translateY(${raw}px)`;
-  }
-
-  function onEnd() {
-    if (!dragging) return;
-    dragging = false;
-    card.style.transition = '';
-    if (!didDrag) {
-      // Pure tap — toggle without needing to drag
-      toggle();
-      return;
-    }
-    const currentY = getTranslateY();
-    const threshold = 40;
-    const isCollapsed = card.classList.contains('collapsed');
-    if (isCollapsed ? currentY < getCollapsedY() - threshold : currentY > threshold) {
-      card.classList.toggle('collapsed');
-    }
-    card.style.transform = '';
-  }
-
-  handle.addEventListener('touchstart',  onStart, { passive: true, signal });
-  window.addEventListener('touchmove',   onMove,  { passive: false, signal });
-  window.addEventListener('touchend',    onEnd,   { signal });
-  handle.addEventListener('mousedown',   onStart, { signal });
-  window.addEventListener('mousemove',   onMove,  { signal });
-  window.addEventListener('mouseup',     onEnd,   { signal });
-
-  const replay = document.getElementById('replayButton');
-  if (replay) replay.addEventListener('click', () => replayFingerprint(), { signal });
-}
-
-function renderNearbyWhispers(whispers) {
-  const pt   = document.getElementById('passingThrough');
-  const list = document.getElementById('ptList');
-  if (!pt || !list) return;
-  if (!whispers.length) { pt.hidden = true; return; }
-  pt.hidden = false;
-  list.innerHTML = whispers.map(w => {
-    const color = DIM_COLORS_PHONE[w.tags?.[0]] || '#9055D4';
-    const pct   = Math.round((w.score || 0) * 100);
-    const text  = (w.transcript || '…').replace(/"/g, '');
-    const tags  = (w.tags || []).join(' · ');
-    return `<li class="pt-item">
-      <span class="pt-dim-dot" style="background:${color}"></span>
-      <div class="pt-body">
-        <span class="pt-quote">"${text}"</span>
-        <div class="pt-tags">${tags}</div>
-      </div>
-      <span class="pt-score">${pct}%</span>
-    </li>`;
-  }).join('');
 }
 
 /* ── Utilities ──────────────────────────────────────────────────── */
@@ -1392,32 +879,17 @@ auraButton.addEventListener('pointerup',     onRecordRelease);
 auraButton.addEventListener('pointercancel', onRecordRelease);
 auraButton.addEventListener('contextmenu', e => e.preventDefault());
 
-// Field — confirm / retry
-document.getElementById('confirmButton').addEventListener('click', confirmWhisper);
-document.getElementById('retryButton').addEventListener('click', retryWhisper);
-
-// Field — restart
+// Done — restart
 document.getElementById('restartButton').addEventListener('click', () => {
-  if (fieldStopper) { fieldStopper(); fieldStopper = null; }
-  stopFingerprintOnCanvas();
-  cleanupFieldNav();
-  // Circle is already faded out (handed off to field-dot and then hidden)
+  if (currentFingerprint) { currentFingerprint.stop(); currentFingerprint = null; }
+  const doneCanvas = document.getElementById('doneCanvas');
+  if (doneCanvas) doneCanvas.hidden = true;
   circleBuilt = false;
   draft = null;
   enc   = null;
   recordedLevels = [];
   liveSISmooth   = 0;
   showScreen('splash');
-});
-
-// Field — email
-document.getElementById('emailSendButton').addEventListener('click', () => {
-  const email = document.getElementById('emailInput').value;
-  if (!email.includes('@')) return;
-  document.getElementById('emailInputRow').hidden = true;
-  document.getElementById('emailSent').hidden     = false;
-  document.getElementById('emailSentText').textContent =
-    `Sent to ${email}. Keep it somewhere safe.`;
 });
 
 /* ── Boot ───────────────────────────────────────────────────────── */
@@ -1431,3 +903,11 @@ resizeShader();
 window.addEventListener('resize', resizeShader);
 shaderRafId = requestAnimationFrame(shaderLoop);
 showScreen('splash');
+
+if (!window.isSecureContext) {
+  const btn = document.getElementById('beginButton');
+  btn.disabled = true;
+  btn.insertAdjacentHTML('afterend',
+    '<p class="label-mono anim-in" style="margin-top:0.75rem;opacity:0.55;font-size:0.72rem;">Microphone access requires HTTPS</p>'
+  );
+}

@@ -27,6 +27,7 @@ const FP_CFG_DEFAULTS = {
   maskInner:             55,    // % — fully visible up to this radius
   maskOuter:             92,    // % — fades to transparent by this radius
   blendMode:             'screen', // 'screen' for dark bg, 'multiply' for light bg
+  showSemanticLabels:    false, // overlay tag names on semantic blobs when value > 0.5
 };
 
 class FingerprintRenderer {
@@ -428,6 +429,9 @@ class FingerprintRenderer {
     }
     for (const d of this._accentDots) this._drawBlob(ctx, d, elapsed, formEase, settleEase, breatheAmt, shrinkMs);
     for (const d of this._solidDots)  this._drawSolidDot(ctx, d, elapsed, formEase, settleEase, breatheAmt, shrinkMs);
+    if (this._cfg.showSemanticLabels) {
+      for (const b of this._semanticBlobs) this._drawSemanticLabel(ctx, b, elapsed, settleEase, shrinkMs);
+    }
     for (const part of this._particles) {
       if (elapsed < part.delay) continue;
       const pAlpha = Math.min(1, (elapsed - part.delay) / 1.0) * formEase;
@@ -439,6 +443,27 @@ class FingerprintRenderer {
 
     ctx.restore();
     this._raf = requestAnimationFrame(this._loop);
+  }
+
+  _drawSemanticLabel(ctx, blob, t, settleEase, shrinkMs) {
+    if (!blob._tag || settleEase <= 0) return;
+    const sf = this._sf(blob, shrinkMs);
+    if (sf <= 0) return;
+    const orbitX = Math.cos(t * (blob.orbitSpeed || 0.1) + (blob.orbitAngle || 0)) * (blob.orbitR || 0);
+    const orbitY = Math.sin(t * (blob.orbitSpeed || 0.1) * 0.71 + (blob.orbitAngle || 0)) * (blob.orbitR || 0) * 0.75;
+    const ox = (orbitX * (1 - settleEase) + (blob.restX ?? 0) * settleEase) * sf;
+    const oy = (orbitY * (1 - settleEase) + (blob.restY ?? 0) * settleEase) * sf;
+    const R = Math.min(this._canvas.width, this._canvas.height) * 0.5;
+    const fontSize = Math.max(7, Math.round(R * 0.10));
+    ctx.save();
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.globalAlpha = settleEase * sf * 0.72;
+    ctx.font = `${fontSize}px sans-serif`;
+    ctx.fillStyle = '#ffffff';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(blob._tag, ox, oy);
+    ctx.restore();
   }
 
   _drawBlob(ctx, blob, t, formEase, settleEase, breatheAmt, shrinkMs) {
@@ -597,5 +622,6 @@ function buildFingerprintConfig(serverConfig) {
     maskInner:             c.fp_maskInner             ?? d.maskInner,
     maskOuter:             c.fp_maskOuter             ?? d.maskOuter,
     blendMode:             c.blendMode                ?? d.blendMode,
+    showSemanticLabels:    c.fp_showSemanticLabels    ?? d.showSemanticLabels,
   };
 }
