@@ -78,6 +78,37 @@ function sendFile(response, filePath, contentType) {
   });
 }
 
+function sendAudioFile(request, response, filePath, contentType) {
+  return readFile(filePath).then((content) => {
+    const total = content.length;
+    const rangeHeader = request.headers["range"];
+    if (rangeHeader) {
+      const m = rangeHeader.match(/bytes=(\d*)-(\d*)/);
+      if (m) {
+        const start = m[1] ? parseInt(m[1], 10) : 0;
+        const end   = m[2] ? parseInt(m[2], 10) : total - 1;
+        const clampedEnd = Math.min(end, total - 1);
+        response.writeHead(206, {
+          "Content-Type": contentType,
+          "Content-Range": `bytes ${start}-${clampedEnd}/${total}`,
+          "Accept-Ranges": "bytes",
+          "Content-Length": clampedEnd - start + 1,
+          "Cache-Control": "no-store",
+        });
+        response.end(content.slice(start, clampedEnd + 1));
+        return;
+      }
+    }
+    response.writeHead(200, {
+      "Content-Type": contentType,
+      "Accept-Ranges": "bytes",
+      "Content-Length": total,
+      "Cache-Control": "no-store",
+    });
+    response.end(content);
+  });
+}
+
 function readBody(request) {
   return new Promise((resolve, reject) => {
     let size = 0;
@@ -712,7 +743,7 @@ async function route(request, response) {
     if (!existsSync(filePath)) { text(response, 404, "Not found"); return; }
     const ext = path.extname(filename).toLowerCase();
     const mime = ext === ".mp3" ? "audio/mpeg" : ext === ".ogg" ? "audio/ogg" : ext === ".webm" ? "audio/webm" : "audio/wav";
-    await sendFile(response, filePath, mime);
+    await sendAudioFile(request, response, filePath, mime);
     return;
   }
 

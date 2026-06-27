@@ -234,7 +234,7 @@
   const textRow  = Math.floor(ROWS / 2);
   const textCol  = Math.max(0, COLS - 2);
   const TEXT_IDX = textRow * COLS + textCol;
-  const QR_IDX   = (ROWS - 1) * COLS;  // always bottom-left
+  const QR_IDX   = textRow * COLS + 1;  // middle row, second from left
 
   function buildQrCard() {
     const cell = document.createElement('div');
