@@ -10,7 +10,7 @@
     * { box-sizing: border-box; margin: 0; padding: 0; }
 
     body {
-      background: #0a0608;
+      background: #F3F2F0;
       color: #141018;
       font-family: 'IBM Plex Mono', 'SF Mono', ui-monospace, monospace;
       font-size: 12px;
@@ -30,17 +30,18 @@
       padding: 14px 20px 12px;
       gap: 16px;
       pointer-events: none;
-      background: linear-gradient(to bottom, rgba(10,6,8,0.80) 0%, transparent 100%);
+      background: linear-gradient(to bottom, rgba(243,242,240,0.88) 0%, transparent 100%);
     }
     .atlas-title-wrap { display: flex; flex-direction: column; gap: 3px; }
     #atlasHeader h1 {
-      font-size: 14px; font-weight: 600;
-      letter-spacing: 0.03em;
-      color: rgba(255,255,255,0.88);
+      font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+      font-size: 14px; font-weight: 500;
+      letter-spacing: 0.01em;
+      color: #111111;
     }
     #atlasSubtitle {
       font-size: 8.5px; letter-spacing: 0.06em;
-      color: rgba(255,255,255,0.36); text-transform: uppercase;
+      color: rgba(17,17,17,0.46); text-transform: uppercase;
     }
     #atlasRight {
       display: flex; align-items: center; gap: 12px;
@@ -48,16 +49,16 @@
     }
     .viewer-dot-wrap {
       display: flex; align-items: center; gap: 6px;
-      font-size: 8.5px; color: rgba(255,255,255,0.45);
+      font-size: 8.5px; color: rgba(17,17,17,0.50);
     }
     .viewer-dot {
       width: 8px; height: 8px;
       border-radius: 50%; flex-shrink: 0;
     }
     #autoRotateBtn {
-      background: rgba(255,255,255,0.07);
-      border: 1px solid rgba(255,255,255,0.13);
-      color: rgba(255,255,255,0.48);
+      background: rgba(17,17,17,0.06);
+      border: 1px solid rgba(17,17,17,0.14);
+      color: rgba(17,17,17,0.52);
       font: 500 8px 'IBM Plex Mono', monospace;
       letter-spacing: 0.08em; text-transform: uppercase;
       padding: 5px 11px; border-radius: 12px;
@@ -65,9 +66,9 @@
     }
     #autoRotateBtn:hover,
     #autoRotateBtn.active {
-      background: rgba(144,85,212,0.25);
-      border-color: rgba(144,85,212,0.48);
-      color: rgba(200,168,255,0.88);
+      background: rgba(106,27,154,0.10);
+      border-color: rgba(106,27,154,0.36);
+      color: #6A1B9A;
     }
 
     /* ── Body ── */
@@ -94,31 +95,67 @@
       position: absolute; inset: 0;
       width: 100%; height: 100%;
       pointer-events: none;
-      mix-blend-mode: overlay;
-      opacity: 0.16;
+      mix-blend-mode: soft-light;
+      opacity: 0.22;
     }
 
     /* ── Detail panel ── */
     #detailPanel {
-      width: 260px; flex-shrink: 0;
-      background: rgba(10,6,8,0.92);
+      width: 280px; flex-shrink: 0;
+      background: rgba(243,242,240,0.96);
       backdrop-filter: blur(8px);
-      border-left: 1px solid rgba(255,255,255,0.07);
+      border-left: 1px solid rgba(20,16,24,0.09);
       display: flex; flex-direction: column;
       padding: 54px 20px 18px;
       overflow-y: auto;
     }
+
+    /* ── Dimension lens chips ── */
+    #dimLens {
+      padding-bottom: 14px;
+      border-bottom: 1px solid rgba(20,16,24,0.08);
+      margin-bottom: 14px;
+      display: flex; flex-direction: column; gap: 5px;
+    }
+    .dim-lens-label {
+      font-size: 7px; letter-spacing: 0.12em;
+      color: rgba(20,16,24,0.36); text-transform: uppercase;
+      margin-bottom: 2px;
+    }
+    .dim-lens-row { display: flex; flex-wrap: wrap; gap: 4px; }
+    .dim-chip {
+      font: 500 7.5px 'IBM Plex Mono', monospace;
+      letter-spacing: 0.05em;
+      padding: 3px 8px; border-radius: 10px;
+      border: 1px solid rgba(20,16,24,0.12);
+      background: rgba(20,16,24,0.04);
+      color: rgba(20,16,24,0.50);
+      cursor: pointer;
+      transition: border-color 0.15s, color 0.15s, background 0.15s;
+    }
+    .dim-chip:hover {
+      border-color: var(--dc);
+      color: var(--dc);
+    }
+    .dim-chip--active {
+      border-color: var(--dc) !important;
+      color: var(--dc) !important;
+      background: rgba(20,16,24,0.06);
+      font-weight: 600;
+    }
+
+    /* ── Detail header ── */
     .dp-header {
       display: flex; justify-content: space-between;
       align-items: baseline; margin-bottom: 14px;
     }
     .dp-label {
       font-size: 8px; letter-spacing: 0.12em;
-      color: rgba(255,255,255,0.28); text-transform: uppercase;
+      color: rgba(20,16,24,0.38); text-transform: uppercase;
     }
     #dpBy {
       font-size: 8px; letter-spacing: 0.06em;
-      color: rgba(255,255,255,0.20);
+      color: rgba(20,16,24,0.28);
     }
     #dpTags {
       display: flex; gap: 6px; flex-wrap: wrap;
@@ -129,45 +166,55 @@
       border-radius: 12px; letter-spacing: 0.06em; font-weight: 500;
     }
     .dp-tag--primary { color: #fff; }
-    .dp-tag--secondary { background: rgba(255,255,255,0.08); color: rgba(255,255,255,0.48); }
+    .dp-tag--secondary {
+      background: rgba(20,16,24,0.07);
+      color: rgba(20,16,24,0.52);
+    }
     .dp-quote-label {
       font-size: 7.5px; letter-spacing: 0.12em;
-      color: rgba(255,255,255,0.26); text-transform: uppercase; margin-bottom: 8px;
+      color: rgba(20,16,24,0.34); text-transform: uppercase; margin-bottom: 8px;
     }
     #dpQuote {
       font-size: 15px; line-height: 1.45; font-style: italic;
-      color: rgba(255,255,255,0.86); margin-bottom: 18px; min-height: 42px;
-    }
-    .dp-si-row { display: flex; align-items: baseline; gap: 8px; margin-bottom: 16px; }
-    #dpSIScore { font-size: 38px; font-weight: 600; line-height: 1; color: rgba(255,255,255,0.88); }
-    .dp-si-pct { font-size: 14px; font-weight: 400; }
-    .dp-si-desc {
-      font-size: 7.5px; letter-spacing: 0.10em;
-      color: rgba(255,255,255,0.32); text-transform: uppercase; line-height: 1.4;
+      color: #141018; margin-bottom: 16px; min-height: 42px;
     }
     .dp-section-label {
       font-size: 7.5px; letter-spacing: 0.10em;
-      color: rgba(255,255,255,0.28); text-transform: uppercase;
+      color: rgba(20,16,24,0.38); text-transform: uppercase;
       margin-bottom: 8px; margin-top: 6px;
     }
     .dp-bars { display: flex; flex-direction: column; gap: 5px; margin-bottom: 4px; }
-    .dp-bar-row { display: flex; align-items: center; gap: 6px; }
-    .dp-bar-label {
-      font-size: 8.5px; color: rgba(255,255,255,0.42);
-      width: 78px; flex-shrink: 0; text-align: right; letter-spacing: 0.03em;
+    .dp-bar-row {
+      display: flex; align-items: center; gap: 6px;
+      position: relative; padding-left: 4px;
+      transition: opacity 0.2s;
     }
+    .dp-bar-row--active::before {
+      content: '';
+      position: absolute;
+      left: -4px; top: 0; bottom: 0;
+      width: 2px;
+      background: var(--bar-accent, #9055D4);
+      border-radius: 1px;
+    }
+    .dp-bar-label {
+      font-size: 8.5px; color: rgba(20,16,24,0.52);
+      width: 74px; flex-shrink: 0;
+      text-align: right; letter-spacing: 0.03em;
+    }
+    .dp-bar-row--active .dp-bar-label { color: rgba(20,16,24,0.80); }
     .dp-bar-track {
       flex: 1; height: 4px;
-      background: rgba(255,255,255,0.08); border-radius: 2px; overflow: hidden;
+      background: rgba(20,16,24,0.08); border-radius: 2px; overflow: hidden;
     }
     .dp-bar-fill { height: 100%; border-radius: 2px; transition: width 0.3s ease; }
     .dp-bar-val {
-      font-size: 8px; color: rgba(255,255,255,0.26);
+      font-size: 8px; color: rgba(20,16,24,0.36);
       width: 26px; text-align: right;
     }
     #dpFooter {
       margin-top: auto; padding-top: 14px;
-      font-size: 7.5px; color: rgba(255,255,255,0.20);
+      font-size: 7.5px; color: rgba(20,16,24,0.30);
       letter-spacing: 0.05em; line-height: 1.6;
     }
 
@@ -175,17 +222,17 @@
     .dp-empty {
       flex: 1; display: flex; flex-direction: column;
       align-items: center; justify-content: center;
-      gap: 8px; color: rgba(255,255,255,0.18);
+      gap: 8px; color: rgba(20,16,24,0.22);
       font-size: 11px; text-align: center; padding: 24px;
     }
-    .dp-empty-icon { font-size: 28px; opacity: 0.4; }
+    .dp-empty-icon { font-size: 28px; opacity: 0.35; }
 
     /* ── Loading ── */
     .center-msg {
       position: absolute; inset: 0;
       display: flex; flex-direction: column;
       align-items: center; justify-content: center;
-      gap: 10px; color: rgba(255,255,255,0.28);
+      gap: 10px; color: rgba(20,16,24,0.36);
       font-size: 12px; font-family: 'IBM Plex Mono', monospace;
       pointer-events: none;
     }
@@ -198,11 +245,12 @@
       position: absolute; pointer-events: none; z-index: 6;
       font: 500 8px 'IBM Plex Mono', monospace;
       letter-spacing: 0.10em; text-transform: uppercase;
-      color: rgba(255,255,255,0.88);
-      background: rgba(10,6,14,0.72);
+      color: #111111;
+      background: rgba(243,242,240,0.90);
       padding: 4px 9px; border-radius: 4px;
       white-space: nowrap; transform: translateX(-50%);
       opacity: 0; transition: opacity 0.3s ease;
+      box-shadow: 0 1px 4px rgba(20,16,24,0.12);
     }
     #umapFpLabel.visible { opacity: 1; }
   </style>
@@ -241,12 +289,19 @@
     </svg>
 
     <div id="centerMsg" class="center-msg">
-      <span style="font-size:28px;opacity:0.2">◇</span>
+      <span style="font-size:28px;opacity:0.18">◇</span>
       <span>loading field…</span>
     </div>
   </div>
 
   <div id="detailPanel">
+    <!-- Dimension lens — always visible -->
+    <div id="dimLens">
+      <div class="dim-lens-label">focus dimension</div>
+      <div class="dim-lens-row" id="acousticChips"></div>
+      <div class="dim-lens-row" id="semanticChips"></div>
+    </div>
+
     <div class="dp-header">
       <span class="dp-label">Inspecting</span>
       <span id="dpBy"></span>
@@ -254,16 +309,10 @@
     <div id="dpTags"></div>
     <p class="dp-quote-label">What was said</p>
     <blockquote id="dpQuote"></blockquote>
-    <div class="dp-si-row">
-      <div>
-        <span id="dpSIScore">—</span><span class="dp-si-pct" id="dpSIPct"></span>
-      </div>
-      <span class="dp-si-desc">Sensuality<br>Index</span>
-    </div>
-    <div class="dp-section-label">Sensuality Index · 6 Acoustic</div>
+    <div class="dp-section-label">Acoustic</div>
     <div id="dpAcousticBars" class="dp-bars"></div>
     <div id="dpSemanticSection">
-      <div class="dp-section-label">Semantic Dimensions · 8</div>
+      <div class="dp-section-label">Semantic</div>
       <div id="dpSemanticBars" class="dp-bars"></div>
     </div>
     <div id="dpFooter"></div>
@@ -318,6 +367,21 @@ function topSemanticDim(w) {
   let best = null, bestVal = -1;
   for (const k of SEMANTIC_DIMS) { const v = Number(sem[k]); if (v > bestVal) { bestVal = v; best = k; } }
   return bestVal >= 0.4 ? best : null;
+}
+
+function getDimValue(w, dim) {
+  if (ACOUSTIC_DIMS.includes(dim)) return w.sensuality?.components?.[dim] ?? 0.5;
+  return Number(w.llm?.semantics?.[dim] ?? 0.5);
+}
+
+/* ── Color helpers ───────────────────────────────────────────────────────── */
+function lerpColor(hexA, hexB, t) {
+  const ar = (hexA >> 16) & 0xff, ag = (hexA >> 8) & 0xff, ab = hexA & 0xff;
+  const br = (hexB >> 16) & 0xff, bg = (hexB >> 8) & 0xff, bb = hexB & 0xff;
+  const r  = Math.round(ar + (br - ar) * t);
+  const g  = Math.round(ag + (bg - ag) * t);
+  const b  = Math.round(ab + (bb - ab) * t);
+  return (r << 16) | (g << 8) | b;
 }
 
 /* ── PCA 3D ──────────────────────────────────────────────────────────────── */
@@ -405,7 +469,7 @@ function tsneLayout3d(data, initPos) {
   return pos;
 }
 
-/* ── Scale raw layout positions to scene units ───────────────────────────── */
+/* ── Scale to scene units ────────────────────────────────────────────────── */
 function normPositions(raw) {
   let xlo=Infinity,xhi=-Infinity,ylo=Infinity,yhi=-Infinity,zlo=Infinity,zhi=-Infinity;
   for (const [x,y,z] of raw) {
@@ -422,43 +486,39 @@ function normPositions(raw) {
 }
 
 /* ── App state ───────────────────────────────────────────────────────────── */
-let points      = [];
-let pinnedId    = null;
+let points        = [];
+let pinnedId      = null;
 let pinnedWhisper = null;
-let wsViewers   = [];
-let whisperMap  = new Map();
+let wsViewers     = [];
+let whisperMap    = new Map();
+let focusDim      = null;
 let _umapFpRenderer = null;
 let _fpCfg = {};
 const FP_SIZE = 340;
 
 /* ── Three.js state ──────────────────────────────────────────────────────── */
 let scene, camera, renderer, raycaster;
-let orbGroup   = null;
-let orbMeshes  = [];    // { mesh, glowMesh, stalk, point }
-let pinnedRing = null;
+let orbGroup    = null;
+let orbMeshes   = [];
+let pinnedRing  = null;
 let hoveredMesh = null;
-let autoRotate = false;
+let autoRotate  = false;
 
-// Spherical camera
 const sph = { theta: 0.65, phi: 1.05, radius: 8.5 };
-
-// Drag state
-let isDragging  = false;
-let dragStart   = null;
+let isDragging   = false;
+let dragStart    = null;
 let dragSphStart = null;
 const DRAG_THRESHOLD = 4;
+const mouseNorm  = new THREE.Vector2(9999, 9999);
 
-// Mouse in normalised device coords (for raycaster)
-const mouseNorm = new THREE.Vector2(9999, 9999);
-
-/* ── Three.js init ───────────────────────────────────────────────────────── */
+/* ── Scene init ──────────────────────────────────────────────────────────── */
 function initScene() {
   const container = document.getElementById('canvasContainer');
   const W = container.clientWidth, H = container.clientHeight;
 
   scene = new THREE.Scene();
-  scene.background = new THREE.Color(0x0a0608);
-  scene.fog = new THREE.FogExp2(0x0a0608, 0.048);
+  scene.background = new THREE.Color(0xF3F2F0);
+  scene.fog = new THREE.FogExp2(0xF3F2F0, 0.045);
 
   camera = new THREE.PerspectiveCamera(55, W / H, 0.1, 100);
   updateCamera();
@@ -470,8 +530,8 @@ function initScene() {
 
   raycaster = new THREE.Raycaster();
 
-  scene.add(new THREE.AmbientLight(0xffffff, 0.5));
-  const dir = new THREE.DirectionalLight(0xffffff, 0.3);
+  scene.add(new THREE.AmbientLight(0xffffff, 0.8));
+  const dir = new THREE.DirectionalLight(0xffffff, 0.4);
   dir.position.set(3, 5, 3);
   scene.add(dir);
 
@@ -495,32 +555,28 @@ function updateCamera() {
 
 /* ── Floor grid ──────────────────────────────────────────────────────────── */
 function buildFloorGrid() {
-  const mat  = new THREE.LineBasicMaterial({ color: 0x9055d4, transparent: true, opacity: 0.13 });
+  const mat  = new THREE.LineBasicMaterial({ color: 0x141018, transparent: true, opacity: 0.07 });
   const SIZE = 5;
   for (let i = -SIZE; i <= SIZE; i++) {
-    scene.add(new THREE.Line(
-      new THREE.BufferGeometry().setFromPoints([
-        new THREE.Vector3(i, FLOOR_Y, -SIZE),
-        new THREE.Vector3(i, FLOOR_Y,  SIZE),
-      ]), mat));
-    scene.add(new THREE.Line(
-      new THREE.BufferGeometry().setFromPoints([
-        new THREE.Vector3(-SIZE, FLOOR_Y, i),
-        new THREE.Vector3( SIZE, FLOOR_Y, i),
-      ]), mat));
+    scene.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints([
+      new THREE.Vector3(i, FLOOR_Y, -SIZE), new THREE.Vector3(i, FLOOR_Y, SIZE),
+    ]), mat));
+    scene.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints([
+      new THREE.Vector3(-SIZE, FLOOR_Y, i), new THREE.Vector3(SIZE, FLOOR_Y, i),
+    ]), mat));
   }
 }
 
-/* ── Build orb meshes ────────────────────────────────────────────────────── */
+/* ── Build orbs ──────────────────────────────────────────────────────────── */
 function buildOrbs() {
   while (orbGroup.children.length) orbGroup.remove(orbGroup.children[0]);
   orbMeshes = [];
+  if (pinnedRing) { pinnedRing = null; }
 
   for (const p of points) {
     const hex = parseInt(p.color.replace('#',''), 16);
     const r   = p.r * 0.022;
 
-    // Core orb
     const mesh = new THREE.Mesh(
       new THREE.SphereGeometry(r, 14, 10),
       new THREE.MeshBasicMaterial({ color: hex })
@@ -529,26 +585,83 @@ function buildOrbs() {
     mesh.userData.point = p;
     orbGroup.add(mesh);
 
-    // Glow halo
     const glowMesh = new THREE.Mesh(
       new THREE.SphereGeometry(r * 2.8, 10, 8),
-      new THREE.MeshBasicMaterial({ color: hex, transparent: true, opacity: 0.13 })
+      new THREE.MeshBasicMaterial({ color: hex, transparent: true, opacity: 0.12 })
     );
     glowMesh.position.copy(mesh.position);
     orbGroup.add(glowMesh);
 
-    // Stalk to floor
     const stalk = new THREE.Line(
       new THREE.BufferGeometry().setFromPoints([
         new THREE.Vector3(p.x3d, p.y3d, p.z3d),
         new THREE.Vector3(p.x3d, FLOOR_Y, p.z3d),
       ]),
-      new THREE.LineBasicMaterial({ color: hex, transparent: true, opacity: 0.22 })
+      new THREE.LineBasicMaterial({ color: hex, transparent: true, opacity: 0.18 })
     );
     orbGroup.add(stalk);
 
     orbMeshes.push({ mesh, glowMesh, stalk, point: p });
   }
+
+  // Restore pinned ring
+  if (pinnedId) {
+    const pt = points.find(p => p.w.id === pinnedId);
+    if (pt) setPinnedRing(pt);
+  }
+
+  applyDimFocus();
+}
+
+/* ── Dimension focus ─────────────────────────────────────────────────────── */
+function applyDimFocus() {
+  for (const { mesh, glowMesh, point } of orbMeshes) {
+    if (!focusDim) {
+      mesh.scale.setScalar(1);
+      glowMesh.scale.setScalar(1);
+      glowMesh.material.opacity = 0.12;
+      mesh.material.color.setHex(parseInt(point.color.replace('#',''), 16));
+    } else {
+      const val    = getDimValue(point.w, focusDim);
+      const sc     = 0.3 + val * 1.9;
+      const dimHex = parseInt((DIM_COLORS[focusDim] || SEM_COLOR).replace('#',''), 16);
+      mesh.scale.setScalar(sc);
+      glowMesh.scale.setScalar(sc);
+      glowMesh.material.opacity = 0.04 + val * 0.28;
+      mesh.material.color.setHex(lerpColor(0xcccccc, dimHex, val));
+    }
+  }
+}
+
+function buildDimChips() {
+  const showSemantics = !!_fpCfg.showSemanticLabels;
+
+  document.getElementById('acousticChips').innerHTML = ACOUSTIC_DIMS.map(k => {
+    const color = DIM_COLORS[k] || SEM_COLOR;
+    const label = ACOUSTIC_LABELS[k] || k;
+    const active = focusDim === k ? ' dim-chip--active' : '';
+    return `<button class="dim-chip${active}" data-dim="${k}" style="--dc:${color}">${label}</button>`;
+  }).join('');
+
+  const semRow = document.getElementById('semanticChips');
+  semRow.style.display = showSemantics ? '' : 'none';
+  semRow.innerHTML = showSemantics ? SEMANTIC_DIMS.map(k => {
+    const active = focusDim === k ? ' dim-chip--active' : '';
+    return `<button class="dim-chip${active}" data-dim="${k}" style="--dc:${SEM_COLOR}">${k}</button>`;
+  }).join('') : '';
+
+  document.querySelectorAll('.dim-chip').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const dim = btn.dataset.dim;
+      focusDim  = focusDim === dim ? null : dim;
+      buildDimChips();
+      applyDimFocus();
+      if (pinnedWhisper) {
+        const pt = points.find(p => p.w.id === pinnedId);
+        if (pt) renderDetailPanel(pt.w, pt);
+      }
+    });
+  });
 }
 
 /* ── Render loop ─────────────────────────────────────────────────────────── */
@@ -560,14 +673,17 @@ function animate() {
     updateCamera();
   }
 
-  // Reset scales
-  for (const { mesh, glowMesh } of orbMeshes) {
-    mesh.scale.setScalar(1);
-    glowMesh.scale.setScalar(1);
-    glowMesh.material.opacity = 0.13;
+  // Reset scales only when not in focus mode
+  if (!focusDim) {
+    for (const { mesh, glowMesh, point } of orbMeshes) {
+      mesh.scale.setScalar(1);
+      glowMesh.scale.setScalar(1);
+      glowMesh.material.opacity = 0.12;
+      mesh.material.color.setHex(parseInt(point.color.replace('#',''), 16));
+    }
   }
 
-  // Hover detection
+  // Hover
   if (!isDragging) {
     raycaster.setFromCamera(mouseNorm, camera);
     const hits = raycaster.intersectObjects(orbMeshes.map(o => o.mesh));
@@ -585,12 +701,13 @@ function animate() {
       }
     }
 
-    if (hoveredMesh) {
+    // Scale hover only in normal mode (focus mode handles its own scale)
+    if (hoveredMesh && !focusDim) {
       const entry = orbMeshes.find(o => o.mesh === hoveredMesh);
       if (entry) {
-        hoveredMesh.scale.setScalar(1.5);
-        entry.glowMesh.scale.setScalar(1.4);
-        entry.glowMesh.material.opacity = 0.28;
+        hoveredMesh.scale.setScalar(1.6);
+        entry.glowMesh.scale.setScalar(1.5);
+        entry.glowMesh.material.opacity = 0.26;
       }
     }
   }
@@ -608,7 +725,7 @@ function projectToScreen(x3d, y3d, z3d) {
   };
 }
 
-/* ── Pinned wireframe ring ───────────────────────────────────────────────── */
+/* ── Pinned ring ─────────────────────────────────────────────────────────── */
 function setPinnedRing(point) {
   if (pinnedRing) { orbGroup.remove(pinnedRing); pinnedRing = null; }
   if (!point) return;
@@ -616,7 +733,7 @@ function setPinnedRing(point) {
   const hex = parseInt(point.color.replace('#',''), 16);
   pinnedRing = new THREE.Mesh(
     new THREE.SphereGeometry(r * 2.2, 14, 10),
-    new THREE.MeshBasicMaterial({ color: hex, wireframe: true, transparent: true, opacity: 0.40 })
+    new THREE.MeshBasicMaterial({ color: hex, wireframe: true, transparent: true, opacity: 0.38 })
   );
   pinnedRing.position.set(point.x3d, point.y3d, point.z3d);
   orbGroup.add(pinnedRing);
@@ -638,7 +755,6 @@ function selectOrb(mesh) {
 function bindControls(container) {
   const el = renderer.domElement;
 
-  // Persistent mouse-move: update normalised coords for raycaster
   el.addEventListener('mousemove', e => {
     const rect = el.getBoundingClientRect();
     mouseNorm.x = ((e.clientX - rect.left) / rect.width)  *  2 - 1;
@@ -688,7 +804,6 @@ function bindControls(container) {
     lastTouch = { x: e.touches[0].clientX, y: e.touches[0].clientY };
   }, { passive: true });
 
-  // Auto-rotate button
   document.getElementById('autoRotateBtn').addEventListener('click', () => {
     autoRotate = !autoRotate;
     document.getElementById('autoRotateBtn').classList.toggle('active', autoRotate);
@@ -733,7 +848,7 @@ function openHoverFingerprint(w, sx, sy) {
   const label = document.getElementById('umapFpLabel');
   label.textContent = 'WSPR · ' + code;
   label.style.left  = sx + 'px';
-  label.style.top   = (sy - FP_SIZE / 2 - 26) + 'px';
+  label.style.top   = (sy - FP_SIZE / 2 - 28) + 'px';
   label.classList.add('visible');
 }
 
@@ -771,7 +886,7 @@ function renderDetailPanel(w, p) {
     tagsEl.appendChild(t);
   }
   const code = w.wspr || w.id?.slice(-4).toUpperCase() || '????';
-  const ct = document.createElement('span');
+  const ct   = document.createElement('span');
   ct.className = 'dp-tag dp-tag--secondary';
   ct.style.letterSpacing = '0.08em';
   ct.textContent = 'WSPR · ' + code;
@@ -781,11 +896,6 @@ function renderDetailPanel(w, p) {
   const display = w.llm?.rephrased?.trim() || w.transcript?.trim() || 'wordless whisper';
   document.getElementById('dpQuote').textContent = '"' + display + '"';
 
-  // SI score
-  const score = w.sensuality?.score;
-  document.getElementById('dpSIScore').textContent = score != null ? Math.round(score * 100) : '—';
-  document.getElementById('dpSIPct').textContent   = score != null ? '%' : '';
-
   // Index counter
   const idx = points.findIndex(pt => pt.w.id === w.id);
   document.getElementById('dpBy').textContent = idx >= 0 ? `${idx + 1} / ${points.length}` : '';
@@ -793,10 +903,12 @@ function renderDetailPanel(w, p) {
   // Acoustic bars
   const comps = w.sensuality?.components || {};
   document.getElementById('dpAcousticBars').innerHTML = ACOUSTIC_DIMS.map(k => {
-    const v = comps[k], pct = v != null ? Math.round(v * 100) : 0;
-    return `<div class="dp-bar-row">
+    const v      = comps[k], pct = v != null ? Math.round(v * 100) : 0;
+    const bc     = DIM_COLORS[k] || SEM_COLOR;
+    const active = focusDim === k ? ' dp-bar-row--active' : '';
+    return `<div class="dp-bar-row${active}" style="--bar-accent:${bc}">
       <span class="dp-bar-label">${ACOUSTIC_LABELS[k]}</span>
-      <div class="dp-bar-track"><div class="dp-bar-fill" style="width:${pct}%;background:${DIM_COLORS[k]||SEM_COLOR}"></div></div>
+      <div class="dp-bar-track"><div class="dp-bar-fill" style="width:${pct}%;background:${bc}"></div></div>
       <span class="dp-bar-val">${v != null ? v.toFixed(2) : '—'}</span>
     </div>`;
   }).join('');
@@ -805,8 +917,9 @@ function renderDetailPanel(w, p) {
   document.getElementById('dpSemanticSection').style.display = showSemantics ? '' : 'none';
   const semData = w.llm?.semantics || {};
   document.getElementById('dpSemanticBars').innerHTML = SEMANTIC_DIMS.map(k => {
-    const v = semData[k], pct = v != null ? Math.round(Number(v) * 100) : 0;
-    return `<div class="dp-bar-row">
+    const v      = semData[k], pct = v != null ? Math.round(Number(v) * 100) : 0;
+    const active = focusDim === k ? ' dp-bar-row--active' : '';
+    return `<div class="dp-bar-row${active}" style="--bar-accent:${SEM_COLOR}">
       <span class="dp-bar-label">${k}</span>
       <div class="dp-bar-track"><div class="dp-bar-fill" style="width:${pct}%;background:${SEM_COLOR}"></div></div>
       <span class="dp-bar-val">${v != null ? Number(v).toFixed(2) : '—'}</span>
@@ -822,11 +935,11 @@ function renderDetailPanel(w, p) {
 
 /* ── Header viewer dots ──────────────────────────────────────────────────── */
 function updateHeaderViewers() {
-  const el = document.getElementById('viewerDots');
-  const dots = [{ name: 'you', color: '#9055D4' }, ...wsViewers];
+  const el   = document.getElementById('viewerDots');
+  const dots = [{ name: 'you', color: '#FF2D8E' }, ...wsViewers];
   el.innerHTML = dots.map(v => `
     <div class="viewer-dot-wrap">
-      <div class="viewer-dot" style="background:${v.color};box-shadow:0 0 0 2px #0a0608,0 0 0 3.5px ${v.color}88"></div>
+      <div class="viewer-dot" style="background:${v.color};box-shadow:0 0 0 2px #F3F2F0,0 0 0 3.5px ${v.color}88"></div>
       <span>${v.name}</span>
     </div>`).join('');
 }
@@ -857,8 +970,7 @@ async function load({ silent = false } = {}) {
 
   let whispers;
   try {
-    const res = await fetch('/whispers');
-    whispers  = (await res.json()).whispers || [];
+    whispers = (await (await fetch('/whispers')).json()).whispers || [];
   } catch {
     document.getElementById('centerMsg').querySelector('span:last-child').textContent = 'could not reach server';
     return;
@@ -896,13 +1008,7 @@ async function load({ silent = false } = {}) {
     `3D · ${valid.length} whispers · ${algo}${hasSemantic ? ' · semantic' : ''}`;
 
   buildOrbs();
-
-  // Restore pinned ring after rebuild
-  if (pinnedId) {
-    const pt = points.find(p => p.w.id === pinnedId);
-    if (pt) setPinnedRing(pt);
-  }
-
+  buildDimChips();
   document.getElementById('centerMsg').style.display = 'none';
   whisperMap = new Map(valid.map(w => [w.id, w]));
 }
