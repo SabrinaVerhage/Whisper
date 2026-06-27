@@ -520,7 +520,6 @@ body {
   justify-content: space-between;
   height: 100%;
   padding: 64px 30px max(40px, env(safe-area-inset-bottom));
-  pointer-events: none;
 }
 
 .done-top { display: flex; flex-direction: column; gap: 8px; }
@@ -539,7 +538,6 @@ body {
   display: flex;
   flex-direction: column;
   gap: 14px;
-  pointer-events: auto;
 }
 
 .done-message {
