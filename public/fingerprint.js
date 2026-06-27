@@ -26,6 +26,7 @@ const FP_CFG_DEFAULTS = {
   breatheStrength:       1.0,   // BREATHE multiplier (0 = frozen, 2 = strong)
   maskInner:             55,    // % — fully visible up to this radius
   maskOuter:             92,    // % — fades to transparent by this radius
+  maskShape:             'circle', // 'circle' (radial vignette) or 'rect' (rounded-rectangle vignette, fills more of the cell)
   blendMode:             'screen', // 'screen' for dark bg, 'multiply' for light bg
   showSemanticLabels:    false, // overlay tag names on semantic blobs when value > 0.5
   semanticLabelColor:    '#ffffff',
@@ -44,11 +45,24 @@ class FingerprintRenderer {
     this._onDone      = null;
     this._loop = this._loop.bind(this);
 
-    // Soft circular edge — replaces hard rectangular canvas clip with a fade
+    // Soft edge — replaces hard rectangular canvas clip with a fade
     const mi = this._cfg.maskInner, mo = this._cfg.maskOuter;
-    const mask = `radial-gradient(ellipse 50% 50% at 50% 50%, black ${mi}%, transparent ${mo}%)`;
-    canvas.style.maskImage = mask;
-    canvas.style.webkitMaskImage = mask;
+    if (this._cfg.maskShape === 'rect') {
+      // Rounded-rectangle vignette: intersect a horizontal + vertical feather.
+      // Feathered bands overlap to soft, rounded corners while filling far more
+      // of the cell than the inscribed circle of the radial mask.
+      const fade = Math.min(40, Math.max(8, (100 - mo) + 6));
+      const gx = `linear-gradient(to right,  transparent 0%, black ${fade}%, black ${100 - fade}%, transparent 100%)`;
+      const gy = `linear-gradient(to bottom, transparent 0%, black ${fade}%, black ${100 - fade}%, transparent 100%)`;
+      canvas.style.maskImage = `${gx}, ${gy}`;
+      canvas.style.webkitMaskImage = `${gx}, ${gy}`;
+      canvas.style.maskComposite = 'intersect';
+      canvas.style.webkitMaskComposite = 'source-in';
+    } else {
+      const mask = `radial-gradient(ellipse 50% 50% at 50% 50%, black ${mi}%, transparent ${mo}%)`;
+      canvas.style.maskImage = mask;
+      canvas.style.webkitMaskImage = mask;
+    }
 
     this._buildBlobs();
     this._buildParticles();
@@ -455,7 +469,7 @@ class FingerprintRenderer {
     const ox = (orbitX * (1 - settleEase) + (blob.restX ?? 0) * settleEase) * sf;
     const oy = (orbitY * (1 - settleEase) + (blob.restY ?? 0) * settleEase) * sf;
     const R = Math.min(this._canvas.width, this._canvas.height) * 0.5;
-    const fontSize = Math.max(7, Math.round(R * 0.065));
+    const fontSize = Math.max(10, Math.round(R * 0.09));
     ctx.save();
     ctx.globalCompositeOperation = 'source-over';
     ctx.globalAlpha = settleEase * sf * 0.72;
@@ -623,6 +637,7 @@ function buildFingerprintConfig(serverConfig) {
     breatheStrength:       c.fp_breatheStrength       ?? d.breatheStrength,
     maskInner:             c.fp_maskInner             ?? d.maskInner,
     maskOuter:             c.fp_maskOuter             ?? d.maskOuter,
+    maskShape:             c.fp_maskShape             ?? d.maskShape,
     blendMode:             c.blendMode                ?? d.blendMode,
     showSemanticLabels:    c.fp_showSemanticLabels    ?? d.showSemanticLabels,
   };

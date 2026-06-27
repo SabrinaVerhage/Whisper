@@ -283,24 +283,6 @@
       transition: opacity 0.3s ease;
     }
     #umapFpLabel.visible { opacity: 1; }
-
-    /* ── Tooltip ── */
-    #tooltip {
-      position: fixed;
-      display: none;
-      background: rgba(243,241,237,0.96);
-      border: 1px solid rgba(20,16,24,0.12);
-      border-radius: 6px;
-      padding: 9px 12px;
-      font-size: 11px;
-      pointer-events: none;
-      max-width: 200px;
-      z-index: 100;
-      box-shadow: 0 4px 16px rgba(20,16,24,0.10);
-    }
-    #tooltip .tt-si { font-size: 20px; font-weight: 600; line-height: 1; margin-bottom: 5px; }
-    #tooltip .tt-row { color: rgba(20,16,24,0.50); margin-top: 2px; }
-    #tooltip .tt-row span { color: #141018; }
   </style>
 </head>
 <body>
@@ -349,8 +331,8 @@
   <!-- Right detail panel -->
   <div id="detailPanel">
     <div class="dp-header">
-      <span class="dp-label">Last Inspected</span>
-      <span id="dpBy">by you</span>
+      <span class="dp-label">Now Showing</span>
+      <span id="dpBy"></span>
     </div>
     <div id="dpTags"></div>
     <p class="dp-quote-label">What was said</p>
@@ -363,20 +345,16 @@
     </div>
     <div class="dp-section-label">Sensuality Index · 6 Acoustic</div>
     <div id="dpAcousticBars" class="dp-bars"></div>
-    <div class="dp-section-label">Semantic Dimensions · 8</div>
-    <div id="dpSemanticBars" class="dp-bars"></div>
+    <div id="dpSemanticSection">
+      <div class="dp-section-label">Semantic Dimensions · 8</div>
+      <div id="dpSemanticBars" class="dp-bars"></div>
+    </div>
     <div id="dpFooter"></div>
     <div class="dp-empty" id="dpEmpty">
       <span class="dp-empty-icon">◌</span>
-      <span>click a whisper<br>to inspect it</span>
+      <span>loading the field…</span>
     </div>
   </div>
-</div>
-
-<div id="tooltip">
-  <div class="tt-si" id="ttSI">—</div>
-  <div class="tt-row" id="ttTagRow">tag &nbsp;&nbsp;<span id="ttTag">—</span></div>
-  <div class="tt-row">dur &nbsp;&nbsp;<span id="ttDur">—</span></div>
 </div>
 
 <script src="/public/fingerprint.js"></script>
@@ -518,8 +496,12 @@ let points   = [];
 let hoverId  = null;
 let pinnedId      = null;
 let pinnedWhisper = null;
-let localMouseX = -1, localMouseY = -1;
 let wsViewers = [];
+
+// Kiosk auto-cycle
+let cycleIndex = 0;
+let cycleTimer = null;
+const CYCLE_MS = 6000;
 let pad = 52;
 let whisperMap = new Map(); // id → last-known whisper, used for delta polling
 
@@ -678,135 +660,27 @@ function draw() {
   ctx.moveTo(x0 + arm, y1); ctx.lineTo(x0, y1); ctx.lineTo(x0, y1 - arm);
   ctx.moveTo(x1 - arm, y1); ctx.lineTo(x1, y1); ctx.lineTo(x1, y1 - arm);
   ctx.stroke();
-
-  // Viewer lenses (phone guests)
-  for (const v of wsViewers) {
-    drawLens(ctx, v, W, H);
-  }
-
-  // Local "you" lens (mouse)
-  if (localMouseX >= 0) {
-    drawLens(ctx, { name: 'you', color: '#141018', x: localMouseX, y: localMouseY, local: true }, W, H);
-  }
 }
 
-function drawLens(ctx, viewer, W, H) {
-  const sx = pad + viewer.x * (W - 2 * pad);
-  const sy = pad + viewer.y * (H - 2 * pad);
-  const R  = 72;
-
-  // Outer border (viewer color)
-  ctx.strokeStyle = viewer.color;
-  ctx.lineWidth = 3.5;
-  ctx.beginPath();
-  ctx.arc(sx, sy, R, 0, Math.PI * 2);
-  ctx.stroke();
-
-  // Inner white ring
-  ctx.strokeStyle = 'rgba(255,255,255,0.85)';
-  ctx.lineWidth = 2;
-  ctx.beginPath();
-  ctx.arc(sx, sy, R - 3, 0, Math.PI * 2);
-  ctx.stroke();
-
-  // Crosshair
-  ctx.strokeStyle = viewer.color + '88';
-  ctx.lineWidth = 0.9;
-  ctx.beginPath();
-  ctx.moveTo(sx - 7, sy); ctx.lineTo(sx + 7, sy);
-  ctx.moveTo(sx, sy - 7); ctx.lineTo(sx, sy + 7);
-  ctx.stroke();
-
-  // Name tag
-  ctx.save();
-  ctx.font = '500 8px "IBM Plex Mono", monospace';
-  const nameW = ctx.measureText(viewer.name).width + 10;
-  const tagX  = sx - nameW / 2;
-  const tagY  = sy - R - 22;
-  ctx.fillStyle = viewer.color;
-  ctx.beginPath();
-  ctx.roundRect(tagX, tagY, nameW, 16, 5);
-  ctx.fill();
-  ctx.fillStyle = viewer.local ? '#F3F2F0' : '#fff';
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.fillText(viewer.name, sx, tagY + 8);
-  ctx.restore();
-}
-
-/* ── Interaction ─────────────────────────────────────────────────────────── */
-canvas.addEventListener('mousemove', e => {
-  const rect = canvas.getBoundingClientRect();
-  const mx = e.clientX - rect.left;
-  const my = e.clientY - rect.top;
-  const W  = canvas.clientWidth;
-  const H  = canvas.clientHeight;
-
-  // Update local "you" lens position (normalized 0-1)
-  localMouseX = (mx - pad) / (W - 2 * pad);
-  localMouseY = (my - pad) / (H - 2 * pad);
-
-  // Hover detection
-  let best = null, bestDist = 26;
-  for (const p of points) {
-    if (p.sx == null) continue;
-    const d = Math.hypot(p.sx - mx, p.sy - my);
-    if (d < bestDist) { bestDist = d; best = p; }
-  }
-
-  if (!best) {
-    tooltip.style.display = 'none';
-    if (hoverId) { hoverId = null; closeHoverFingerprint(); }
-    else draw(); // redraw for "you" lens movement
-    return;
-  }
-
-  if (hoverId !== best.w.id) {
-    hoverId = best.w.id;
-    openHoverFingerprint(best.w, best.sx, best.sy);
-  } else draw(); // still need to redraw for lens movement
-
-  // Tooltip
-  const w = best.w;
-  document.getElementById('ttSI').textContent = w.sensuality?.score != null
-    ? Math.round(w.sensuality.score * 100) + '%' : '—';
-  document.getElementById('ttSI').style.color = best.color;
-  const dim = topSemanticDim(w) || dominantDim(w);
-  document.getElementById('ttTag').textContent = dim || '—';
-  document.getElementById('ttTagRow').style.display = dim ? '' : 'none';
-  const dur = w.features?.durationLibrosa ?? w.features?.duration;
-  document.getElementById('ttDur').textContent = dur != null ? `${Math.round(dur)}s` : '—';
-
-  let tx = e.clientX + 14, ty = e.clientY - 10;
-  if (tx + 210 > window.innerWidth)  tx = e.clientX - 220;
-  if (ty + 80  > window.innerHeight) ty = e.clientY - 80;
-  tooltip.style.left    = tx + 'px';
-  tooltip.style.top     = ty + 'px';
-  tooltip.style.display = 'block';
-});
-
-canvas.addEventListener('mouseleave', () => {
-  tooltip.style.display = 'none';
-  localMouseX = -1; localMouseY = -1;
-  if (hoverId) { hoverId = null; closeHoverFingerprint(); }
-  else draw();
-});
-
-canvas.addEventListener('click', e => {
-  const rect = canvas.getBoundingClientRect();
-  const mx = e.clientX - rect.left, my = e.clientY - rect.top;
-  let best = null, bestDist = 26;
-  for (const p of points) {
-    if (p.sx == null) continue;
-    const d = Math.hypot(p.sx - mx, p.sy - my);
-    if (d < bestDist) { bestDist = d; best = p; }
-  }
-  if (!best) return;
-  pinnedId      = best.w.id;
-  pinnedWhisper = best.w;
-  renderDetailPanel(best.w);
+/* ── Kiosk auto-cycle ────────────────────────────────────────────────────── */
+function focusEntry(i) {
+  if (!points.length) return;
+  cycleIndex = ((i % points.length) + points.length) % points.length;
+  const p = points[cycleIndex];
+  pinnedId      = p.w.id;
+  pinnedWhisper = p.w;
+  renderDetailPanel(p.w);
+  openHoverFingerprint(p.w, p.sx, p.sy);
   draw();
-});
+}
+
+function startCycle() {
+  if (cycleTimer) { clearInterval(cycleTimer); cycleTimer = null; }
+  if (!points.length) return;
+  if (cycleIndex >= points.length) cycleIndex = 0;
+  focusEntry(cycleIndex);
+  cycleTimer = setInterval(() => focusEntry(cycleIndex + 1), CYCLE_MS);
+}
 
 window.addEventListener('resize', () => {
   if (points.length) {
@@ -821,8 +695,9 @@ window.addEventListener('resize', () => {
 function renderDetailPanel(w) {
   document.getElementById('dpEmpty').style.display = 'none';
 
+  const showSemantics = !!_fpCfg.showSemanticLabels;
   const dim  = dominantDim(w);
-  const sem  = topSemanticDim(w);
+  const sem  = showSemantics ? topSemanticDim(w) : null;
   const color = DIM_COLORS[dim] || '#9055D4';
 
   // Tags
@@ -864,8 +739,9 @@ function renderDetailPanel(w) {
     document.getElementById('dpSIPct').textContent   = '';
   }
 
-  // By label
-  document.getElementById('dpBy').textContent = 'by you';
+  // Position counter
+  document.getElementById('dpBy').textContent =
+    points.length ? `${cycleIndex + 1} / ${points.length}` : '';
 
   // Acoustic bars
   const comps  = w.sensuality?.components || {};
@@ -883,7 +759,8 @@ function renderDetailPanel(w) {
     </div>`;
   }).join('');
 
-  // Semantic bars
+  // Semantic bars — gated on the admin "semantic labels" toggle
+  document.getElementById('dpSemanticSection').style.display = showSemantics ? '' : 'none';
   const sem2 = w.llm?.semantics || {};
   const sEl  = document.getElementById('dpSemanticBars');
   sEl.innerHTML = SEMANTIC_DIMS.map(k => {
@@ -900,7 +777,7 @@ function renderDetailPanel(w) {
 
   // Footer
   const hasPraat = w.features?.hnr != null;
-  const hasSem   = !!w.llm?.semantics;
+  const hasSem   = showSemantics && !!w.llm?.semantics;
   const parts    = ['acoustic'];
   if (hasPraat) parts.push('Praat/librosa');
   if (hasSem)   parts.push('semantic · dolphin-mistral');
@@ -958,11 +835,9 @@ async function load({ silent = false } = {}) {
   }
 
   const valid = whispers.filter(w => featureVec(w) !== null);
-  const total = whispers.length;
-  const exploring = wsViewers.length;
 
   document.getElementById('atlasSubtitle').textContent =
-    `UMAP · ${valid.length} whispers${exploring ? ` · ${exploring + 1} exploring now` : ''}`;
+    `UMAP · ${valid.length} whispers`;
 
   if (valid.length < 2) {
     document.getElementById('centerMsg').querySelector('span:last-child').textContent =
@@ -997,14 +872,13 @@ async function load({ silent = false } = {}) {
 
   const hasSemantic = valid.some(w => w.llm?.semantics);
   document.getElementById('atlasSubtitle').textContent =
-    `UMAP · ${valid.length} whispers` +
-    (exploring ? ` · ${exploring + 1} exploring now` : '') +
-    ` · ${algo}${hasSemantic ? ' · semantic' : ''}`;
+    `UMAP · ${valid.length} whispers · ${algo}${hasSemantic ? ' · semantic' : ''}`;
 
   document.getElementById('centerMsg').style.display = 'none';
   whisperMap = new Map(valid.map(w => [w.id, w]));
   updateHeaderViewers();
   draw();
+  startCycle();
 }
 
 /* ── Background polling for LLM updates ─────────────────────────────────── */
@@ -1051,7 +925,6 @@ async function pollWhispers() {
 }
 
 /* ── Boot ────────────────────────────────────────────────────────────────── */
-const tooltip = document.getElementById('tooltip');
 updateHeaderViewers();
 connectWS();
 load();

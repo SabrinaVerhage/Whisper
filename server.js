@@ -15,6 +15,7 @@ const RECORDINGS_DIR = path.join(__dirname, "recordings");
 const PUBLIC_DIR = path.join(__dirname, "public");
 const JSONL_PATH = path.join(DATA_DIR, "whispers.jsonl");
 const CONFIG_PATH = path.join(DATA_DIR, "config.json");
+const CONFIG_EXAMPLE_PATH = path.join(DATA_DIR, "config.json.example");
 const MAX_BODY_BYTES = 25 * 1024 * 1024;
 
 let config = {
@@ -85,15 +86,32 @@ async function ensureStorage() {
 }
 
 async function loadConfig() {
+  // First boot (fresh checkout or after `git clean`): seed config.json from the
+  // committed example so the live config — which is gitignored and survives
+  // `git pull` — starts from the curated defaults rather than bare client ones.
+  if (!existsSync(CONFIG_PATH) && existsSync(CONFIG_EXAMPLE_PATH)) {
+    try {
+      await writeFile(CONFIG_PATH, await readFile(CONFIG_EXAMPLE_PATH, 'utf8'), 'utf8');
+      console.log('Seeded data/config.json from config.json.example');
+    } catch (err) {
+      console.error('Failed to seed config.json from example:', err.message);
+    }
+  }
   try {
     const raw = await readFile(CONFIG_PATH, 'utf8');
     Object.assign(config, JSON.parse(raw));
-  } catch {}
+  } catch (err) {
+    if (err.code !== 'ENOENT') console.error('Failed to load config.json:', err.message);
+  }
 }
 
 async function saveConfig() {
   const { port, ...saveable } = config;
-  await writeFile(CONFIG_PATH, JSON.stringify(saveable, null, 2), 'utf8');
+  try {
+    await writeFile(CONFIG_PATH, JSON.stringify(saveable, null, 2), 'utf8');
+  } catch (err) {
+    console.error('Failed to save config.json:', err.message);
+  }
 }
 
 function makeId() {
