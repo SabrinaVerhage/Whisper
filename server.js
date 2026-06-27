@@ -2,12 +2,32 @@ import { createServer, request as httpRequest } from "node:http";
 import { request as httpsRequest } from "node:https";
 import { spawn } from "node:child_process";
 import { mkdir, readFile, readdir, unlink, writeFile } from "node:fs/promises";
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import crypto from "node:crypto";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
+// Minimal .env loader (Node built-ins only — no dotenv package).
+// Reads KEY=value lines from .env at startup. Real process.env vars always win,
+// so systemd/shell-exported values override the file on the VPS.
+function loadDotEnv(file) {
+  if (!existsSync(file)) return;
+  for (const raw of readFileSync(file, "utf8").split(/\r?\n/)) {
+    const line = raw.trim();
+    if (!line || line.startsWith("#")) continue;
+    const eq = line.indexOf("=");
+    if (eq === -1) continue;
+    const key = line.slice(0, eq).trim();
+    let val = line.slice(eq + 1).trim();
+    if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"))) {
+      val = val.slice(1, -1);
+    }
+    if (key && !(key in process.env)) process.env[key] = val;
+  }
+}
+loadDotEnv(path.join(__dirname, ".env"));
 
 const DATA_DIR = path.join(__dirname, "data");
 const WHISPERS_DIR = path.join(DATA_DIR, "whispers");
@@ -720,6 +740,46 @@ async function route(request, response) {
     const sync = url.searchParams.get("sync") === "1";
     const record = await saveWhisper(payload, { waitForAnalysis: sync });
     json(response, 201, record);
+    return;
+  }
+
+  // POST /whispers/:id/generate — (re)generate ElevenLabs audio for an existing entry.
+  // Reruns Ollama if the record has no llm.affect. Always overwrites the generated mp3.
+  if (request.method === "POST" && /^\/whispers\/[^/]+\/generate$/.test(url.pathname)) {
+    const id = url.pathname.split("/")[2];
+    const recordPath = path.join(WHISPERS_DIR, `${id}.json`);
+    if (!existsSync(recordPath)) { json(response, 404, { error: "Whisper not found." }); return; }
+
+    let r = JSON.parse(await readFile(recordPath, "utf8"));
+
+    // If no transcript we can't run Ollama — still try generate with existing affect if any.
+    if (!r.llm?.affect && r.transcript) {
+      const ollamaResult = await callOllama(r.transcript);
+      if (ollamaResult) {
+        r.llm = { ...(r.llm || {}), ...ollamaResult, model: OLLAMA_MODEL };
+        await writeFile(recordPath, `${JSON.stringify(r, null, 2)}\n`, "utf8");
+        console.log(`[ollama] ${id} → "${(ollamaResult.rephrased || "").slice(0, 60)}"`);
+      }
+    }
+
+    if (!r.llm?.affect) {
+      json(response, 422, { error: "No affect data — Ollama must succeed first (is it running with dolphin-mistral?)" });
+      return;
+    }
+
+    const vocalScore = generateVocalScore(r.llm.affect);
+    const genPath    = path.join(RECORDINGS_DIR, `${id}-generated.mp3`);
+    const genResult  = await callElevenLabs(vocalScore, genPath);
+    if (!genResult) {
+      json(response, 502, { error: "ElevenLabs call failed — check server logs for HTTP status." });
+      return;
+    }
+
+    r.generatedWhisperFile = `recordings/${id}-generated.mp3`;
+    r.vocalScore           = vocalScore;
+    await writeFile(recordPath, `${JSON.stringify(r, null, 2)}\n`, "utf8");
+    console.log(`[elevenlabs] ${id} regenerated — "${vocalScore.slice(0, 70)}"`);
+    json(response, 200, r);
     return;
   }
 

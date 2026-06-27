@@ -558,14 +558,23 @@
         </div>`;
     }
 
+    const generateLabel = generatedWhisperFile ? '↺ regenerate whisper' : '✦ generate whisper';
+    const hasTranscript = !!(w.transcript?.trim());
+    const generateHint  = !hasTranscript ? 'title="needs a transcript first"' : '';
+
     return `
       ${transcriptHtml}
       ${renderFeatures(w)}
       ${renderSemantics(w)}
       ${audioHtml}
-      <div style="margin-top:16px">
+      <div style="margin-top:16px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
         <button class="json-toggle" onclick="toggleJson('${w.id}')">show raw JSON</button>
-        <div class="json-block" id="json-${w.id}">
+        <button id="gen-btn-${w.id}" class="json-toggle"
+          style="${hasTranscript ? 'color:#a78bfa;border-color:#a78bfa44' : 'color:#555;border-color:#333;cursor:not-allowed'}"
+          onclick="generateWhisper('${w.id}')" ${generateHint}
+          ${hasTranscript ? '' : 'disabled'}>${generateLabel}</button>
+        <span id="gen-status-${w.id}" style="font-size:11px;color:var(--muted)"></span>
+        <div class="json-block" id="json-${w.id}" style="width:100%">
           <pre>${JSON.stringify(w, null, 2)}</pre>
         </div>
       </div>`;
@@ -676,6 +685,51 @@
     expanded.delete(id);
     drawnAudio.delete(id);
     await fetchWhispers();
+  }
+
+  async function generateWhisper(id) {
+    const btn    = document.getElementById(`gen-btn-${id}`);
+    const status = document.getElementById(`gen-status-${id}`);
+    if (!btn) return;
+    btn.disabled = true;
+    btn.textContent = '⏳ generating…';
+    if (status) status.textContent = '';
+
+    try {
+      const res  = await fetch(`/whispers/${id}/generate`, { method: 'POST' });
+      const data = await res.json();
+      if (!res.ok) {
+        if (status) status.textContent = `✗ ${data.error || res.statusText}`;
+        btn.disabled = false;
+        btn.textContent = '↺ retry';
+        return;
+      }
+      // Update local whisperData and redraw just this entry's body so the
+      // new audio player appears without a full list rebuild.
+      const idx = whisperData.findIndex(w => w.id === id);
+      if (idx !== -1) whisperData[idx] = data;
+      if (status) status.textContent = '✓ done';
+      // Redraw the body of this entry in-place (preserve expanded state).
+      drawnAudio.delete(id);
+      const body = document.getElementById(`body-${id}`);
+      if (body) {
+        body.innerHTML = renderWhisperBody(data);
+        // Draw waveform/spectrogram for original audio if present.
+        if (data.audioFile) {
+          drawnAudio.add(id);
+          const filename = data.audioFile.split('/').pop();
+          setTimeout(() => drawAudioVisuals(
+            `/recordings/${filename}`,
+            document.getElementById(`wave-${id}`),
+            document.getElementById(`spect-${id}`)
+          ), 0);
+        }
+      }
+    } catch (e) {
+      if (status) status.textContent = `✗ ${e.message}`;
+      btn.disabled = false;
+      btn.textContent = '↺ retry';
+    }
   }
 
   /* ── Audio visualizations ────────────────────────────────────────────────── */
