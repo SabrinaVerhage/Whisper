@@ -8,6 +8,10 @@
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   html, body { width: 100%; height: 100%; overflow: hidden; }
 
+  /* Single shared margin: title, captions, QR label and text card all align
+     to this left edge so the whole page reads off one vertical line. */
+  :root { --edge: 20px; }
+
   /* ── Themes ─────────────────────────────────────────────────── */
   html.theme-dark  {
     --bg:        #06010f;
@@ -18,7 +22,7 @@
     --text-body: rgba(255,255,255,0.38);
   }
   html.theme-light {
-    --bg:        #ede8f2;
+    --bg:        #d9d6df;
     --label:     #000;
     --phrase:    rgba(0,0,0,0.78);
     --title:     #000;
@@ -31,7 +35,7 @@
   /* ── Page title ─────────────────────────────────────────────── */
   #title {
     position: fixed;
-    top: 18px; left: 24px;
+    top: var(--edge); left: var(--edge);
     font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
     font-weight: 500;
     font-size: calc(17px * var(--font-scale, 1));
@@ -61,7 +65,7 @@
     grid-template-columns: repeat(var(--cols, 8), 1fr);
     grid-template-rows:    repeat(var(--rows, 4), 1fr);
     gap: 8px;
-    padding: 8px;
+    padding: var(--edge);
   }
 
   /* ── Fingerprint cell ───────────────────────────────────────── */
@@ -109,6 +113,9 @@
     -webkit-box-orient: vertical;
     font-style: italic;
     flex-shrink: 0;
+    /* Always reserve two lines — even when empty or one line — so the code
+       above it sits on the same baseline across every cell in a row. */
+    min-height: 2.6em;
   }
 
   /* ── QR card ────────────────────────────────────────────────── */
@@ -118,7 +125,8 @@
     align-items: flex-start;
     justify-content: flex-end;
     gap: 8px;
-    padding: 12px;
+    /* no horizontal padding: label + QR align to the same left edge as captions */
+    padding: 12px 0;
     min-width: 0;
     min-height: 0;
   }
@@ -149,7 +157,7 @@
     letter-spacing: 0.18em;
     text-transform: uppercase;
     color: var(--label);
-    text-align: center;
+    text-align: left;
     line-height: 1;
     flex-shrink: 0;
   }
@@ -159,8 +167,8 @@
     display: flex;
     flex-direction: column;
     justify-content: center;
-    align-items: flex-end;
-    padding: 14px 16px;
+    align-items: flex-start;
+    padding: 14px 0;
     min-width: 0;
     min-height: 0;
   }
@@ -174,7 +182,7 @@
     color: var(--text-hl);
     margin-bottom: 12px;
     white-space: pre-line;
-    text-align: right;
+    text-align: left;
   }
 
   .cell-text-body {
@@ -183,7 +191,7 @@
     font-size: calc(9px * var(--font-scale, 1));
     line-height: 1.6;
     color: var(--text-body);
-    text-align: right;
+    text-align: left;
   }
 </style>
 </head>
