@@ -228,7 +228,8 @@
   const THEME      = cfg.galleryTheme          ?? 'dark';
   const fpCfg = {
     ...buildFingerprintConfig(cfg),
-    blendMode: THEME === 'light' ? 'multiply' : 'screen',
+    blendMode:          THEME === 'light' ? 'multiply'  : 'screen',
+    semanticLabelColor: THEME === 'light' ? '#141018'   : '#ffffff',
   };
   const COLS       = Math.max(1, cfg.galleryCols          ?? 8);
   const ROWS       = Math.max(1, cfg.galleryRows          ?? 4);

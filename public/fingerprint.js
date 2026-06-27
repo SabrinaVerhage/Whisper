@@ -28,6 +28,7 @@ const FP_CFG_DEFAULTS = {
   maskOuter:             92,    // % — fades to transparent by this radius
   blendMode:             'screen', // 'screen' for dark bg, 'multiply' for light bg
   showSemanticLabels:    false, // overlay tag names on semantic blobs when value > 0.5
+  semanticLabelColor:    '#ffffff',
 };
 
 class FingerprintRenderer {
@@ -459,7 +460,7 @@ class FingerprintRenderer {
     ctx.globalCompositeOperation = 'source-over';
     ctx.globalAlpha = settleEase * sf * 0.72;
     ctx.font = `${fontSize}px sans-serif`;
-    ctx.fillStyle = '#ffffff';
+    ctx.fillStyle = this._cfg.semanticLabelColor;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText(blob._tag, ox, oy);

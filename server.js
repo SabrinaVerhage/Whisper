@@ -27,7 +27,7 @@ function json(response, statusCode, payload) {
     "Content-Type": "application/json; charset=utf-8",
     "Content-Length": Buffer.byteLength(body),
     "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Methods": "GET,POST,DELETE,OPTIONS",
+    "Access-Control-Allow-Methods": "GET,POST,PATCH,DELETE,OPTIONS",
     "Access-Control-Allow-Headers": "Content-Type",
   });
   response.end(body);
@@ -341,7 +341,7 @@ const ELEVENLABS_MODEL    = "eleven_v3";
 const OLLAMA_PROMPT = (transcript) => `You are part of an anonymous art installation where visitors whisper their intimate desires, secrets, and longings. Respond with a JSON object only — no markdown, no code fences, no explanation before or after.
 
 Required keys:
-"rephrased": 1–2 sentences that keep the directness and rawness of what was said. Whisper it — don't abstract it into metaphor or poetry. If sexual or explicit, stay explicit. If blunt, stay blunt. Just render it in a quiet, close, intimate voice. Never refuse or moralize.
+"rephrased": 1–2 sentences. Don't restate what was said — approach it sideways. Find the sensation, the pressure, the edge underneath it. Something you'd overhear through a wall and half-understand. Fragments are fine. Never explain, never moralize.
 "semantics": scores from 0.0 (absent) to 1.0 (dominant) for each dimension:
   "sensory": body sensations — what they want to feel, taste, touch
   "relational": power dynamics, surrender, being seen, taken, worshipped
@@ -623,7 +623,12 @@ async function route(request, response) {
   const url = new URL(request.url, `http://${request.headers.host}`);
 
   if (request.method === "OPTIONS") {
-    json(response, 204, {});
+    response.writeHead(204, {
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Methods": "GET,POST,PATCH,DELETE,OPTIONS",
+      "Access-Control-Allow-Headers": "Content-Type",
+    });
+    response.end();
     return;
   }
 
@@ -739,7 +744,7 @@ async function route(request, response) {
         'fp_accentDotCount', 'fp_accentDotMaxSize',
         'fp_particleBase', 'fp_particleFantasyScale', 'fp_satelliteMax',
         'fp_formingMs', 'fp_settlingMs', 'fp_breatheStrength',
-        'fp_maskInner', 'fp_maskOuter',
+        'fp_maskInner', 'fp_maskOuter', 'fp_showSemanticLabels',
       ];
       for (const k of allowed) {
         if (body[k] !== undefined) config[k] = body[k];

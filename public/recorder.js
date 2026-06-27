@@ -807,7 +807,8 @@ function round(v) { return Math.round(v * 10000) / 10000; }
 /* ── Event wiring ───────────────────────────────────────────────── */
 
 // Splash → Record: show record screen and immediately request mic
-document.getElementById('beginButton').addEventListener('pointerdown', async () => {
+document.getElementById('beginButton').addEventListener('pointerdown', async (e) => {
+  e.preventDefault();
   getAC();
   showScreen('record');
   try {
