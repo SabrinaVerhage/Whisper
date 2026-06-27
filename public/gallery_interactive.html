@@ -1,0 +1,829 @@
+<!DOCTYPE html>
+<html lang="en" class="theme-dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>whisper field — detail</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { width: 100%; height: 100%; overflow: hidden; }
+
+  :root { --edge: 20px; }
+
+  /* ── Themes ─────────────────────────────────────────────────── */
+  html.theme-dark {
+    --bg:        #06010f;
+    --label:     rgba(255,255,255,0.52);
+    --phrase:    rgba(255,255,255,0.38);
+    --title:     rgba(255,255,255,0.22);
+    --text-hl:   rgba(255,255,255,0.82);
+    --text-body: rgba(255,255,255,0.38);
+  }
+  html.theme-light {
+    --bg:        #d9d6df;
+    --label:     #000;
+    --phrase:    rgba(0,0,0,0.78);
+    --title:     #000;
+    --text-hl:   #000;
+    --text-body: rgba(0,0,0,0.82);
+  }
+
+  body { background: var(--bg); }
+
+  /* ── Page title ─────────────────────────────────────────────── */
+  #title {
+    position: fixed;
+    top: var(--edge); left: var(--edge);
+    font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    font-weight: 500;
+    font-size: calc(17px * var(--font-scale, 1));
+    letter-spacing: -0.025em;
+    line-height: 0.96;
+    text-transform: lowercase;
+    color: var(--label);
+    pointer-events: none;
+    z-index: 10;
+    white-space: nowrap;
+  }
+  #title .subtitle {
+    font-family: 'IBM Plex Mono', 'SF Mono', monospace;
+    font-weight: 400;
+    font-size: calc(11px * var(--font-scale, 1));
+    letter-spacing: 0.12em;
+    text-transform: lowercase;
+    color: var(--phrase);
+    margin-top: 6px;
+  }
+
+  /* ── Full-screen grid ───────────────────────────────────────── */
+  #grid {
+    position: fixed;
+    inset: 0;
+    display: grid;
+    grid-template-columns: repeat(var(--cols, 8), 1fr);
+    grid-template-rows:    repeat(var(--rows, 4), 1fr);
+    gap: 8px;
+    padding: var(--edge);
+  }
+
+  /* ── Fingerprint cell ───────────────────────────────────────── */
+  .cell {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+    min-width: 0;
+    min-height: 0;
+  }
+  .cell.clickable {
+    cursor: pointer;
+  }
+  .cell.clickable:hover canvas {
+    opacity: 0.85;
+  }
+
+  .cell canvas {
+    flex: 1 1 0;
+    min-height: 0;
+    min-width: 0;
+    width: 100%;
+    height: 0;
+    display: block;
+    transition: opacity 0.15s;
+  }
+
+  .cell-wspr {
+    font-family: 'IBM Plex Mono', 'SF Mono', monospace;
+    font-size: calc(10px * var(--font-scale, 1));
+    letter-spacing: 0.18em;
+    color: var(--label);
+    text-transform: uppercase;
+    line-height: 1;
+    flex-shrink: 0;
+  }
+
+  .cell-phrase {
+    font-family: 'IBM Plex Mono', 'SF Mono', monospace;
+    font-size: calc(8.5px * var(--font-scale, 1));
+    color: var(--phrase);
+    text-align: left;
+    line-height: 1.3;
+    max-width: 100%;
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    font-style: italic;
+    flex-shrink: 0;
+    min-height: 2.6em;
+  }
+
+  /* ── QR card ────────────────────────────────────────────────── */
+  .cell-qr {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: flex-end;
+    gap: 8px;
+    padding: 12px 0;
+    min-width: 0;
+    min-height: 0;
+  }
+  .cell-qr-wrap {
+    width: 55%;
+    aspect-ratio: 1;
+    flex-shrink: 0;
+  }
+  .cell-qr-wrap img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    display: block;
+  }
+  html.theme-light .cell-qr-wrap img { mix-blend-mode: multiply; }
+  html.theme-dark  .cell-qr-wrap img { filter: invert(1); mix-blend-mode: screen; }
+  .cell-qr-label {
+    font-family: 'IBM Plex Mono', 'SF Mono', monospace;
+    font-size: calc(7px * var(--font-scale, 1));
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--label);
+    text-align: left;
+    line-height: 1;
+    flex-shrink: 0;
+  }
+
+  /* ── Text card ──────────────────────────────────────────────── */
+  .cell-text {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: flex-start;
+    padding: 14px 0;
+    min-width: 0;
+    min-height: 0;
+  }
+  .cell-text-hl {
+    font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    font-weight: 700;
+    font-size: calc(21px * var(--font-scale, 1));
+    letter-spacing: -0.05em;
+    line-height: 1.0;
+    color: var(--text-hl);
+    margin-bottom: 12px;
+    white-space: pre-line;
+    text-align: left;
+  }
+  .cell-text-body {
+    font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    font-weight: 400;
+    font-size: calc(9px * var(--font-scale, 1));
+    line-height: 1.6;
+    color: var(--text-body);
+    text-align: left;
+  }
+
+  /* ── Overlay ────────────────────────────────────────────────── */
+  #overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 100;
+    background: rgba(0,0,0,0.88);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+  }
+  #overlay[hidden] { display: none; }
+
+  #overlay-card {
+    position: relative;
+    background: #0d0b14;
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 4px;
+    width: 100%;
+    max-width: 960px;
+    max-height: 90vh;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: 1fr;
+    overflow: hidden;
+  }
+
+  #overlay-close {
+    position: absolute;
+    top: 14px; right: 16px;
+    z-index: 10;
+    background: none;
+    border: none;
+    color: rgba(255,255,255,0.38);
+    font-size: 22px;
+    line-height: 1;
+    cursor: pointer;
+    padding: 4px 6px;
+    transition: color 0.15s;
+  }
+  #overlay-close:hover { color: rgba(255,255,255,0.82); }
+
+  #overlay-fp {
+    aspect-ratio: 1;
+    position: relative;
+    overflow: hidden;
+    align-self: center;
+  }
+  #overlay-canvas {
+    width: 100%;
+    height: 100%;
+    display: block;
+  }
+
+  #overlay-data {
+    padding: 28px 28px 28px 20px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    max-height: 90vh;
+  }
+  /* thin scrollbar */
+  #overlay-data::-webkit-scrollbar { width: 3px; }
+  #overlay-data::-webkit-scrollbar-track { background: transparent; }
+  #overlay-data::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); border-radius: 2px; }
+
+  /* ── Overlay: header ───── */
+  .ov-wspr {
+    font-family: 'IBM Plex Mono', 'SF Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: rgba(255,255,255,0.35);
+  }
+  .ov-wspr span {
+    color: rgba(255,255,255,0.7);
+    margin-right: 14px;
+  }
+
+  .ov-rephrased {
+    font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    font-style: italic;
+    font-size: 15px;
+    line-height: 1.5;
+    color: rgba(255,255,255,0.72);
+  }
+
+  /* ── Overlay: score ───── */
+  .ov-score-row {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+  }
+  .ov-score-num {
+    font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    font-weight: 700;
+    font-size: 36px;
+    letter-spacing: -0.04em;
+    line-height: 1;
+    color: #FF2D8E;
+  }
+  .ov-score-label {
+    font-family: 'IBM Plex Mono', 'SF Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: rgba(255,255,255,0.28);
+  }
+  .ov-partial {
+    font-family: 'IBM Plex Mono', 'SF Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 0.14em;
+    color: rgba(255,255,255,0.22);
+  }
+
+  /* ── Overlay: section heading ───── */
+  .ov-section-title {
+    font-family: 'IBM Plex Mono', 'SF Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: rgba(255,255,255,0.22);
+    margin-bottom: 10px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid rgba(255,255,255,0.07);
+  }
+
+  /* ── Overlay: top semantic tags ───── */
+  .ov-sem-top {
+    font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    font-size: 13px;
+    font-weight: 500;
+    letter-spacing: 0.01em;
+    color: rgba(255,255,255,0.55);
+    margin-bottom: 12px;
+  }
+  .ov-sem-top strong {
+    color: rgba(255,255,255,0.85);
+    font-weight: 600;
+  }
+
+  /* ── Overlay: dimension bars ───── */
+  .ov-dim {
+    margin-bottom: 11px;
+  }
+  .ov-dim:last-child { margin-bottom: 0; }
+
+  .ov-dim-header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    margin-bottom: 4px;
+  }
+  .ov-dim-name {
+    font-family: 'IBM Plex Mono', 'SF Mono', monospace;
+    font-size: 9.5px;
+    letter-spacing: 0.1em;
+    text-transform: lowercase;
+    color: rgba(255,255,255,0.45);
+  }
+  .ov-dim-val {
+    font-family: 'IBM Plex Mono', 'SF Mono', monospace;
+    font-size: 9px;
+    color: rgba(255,255,255,0.25);
+  }
+
+  .ov-bar-track {
+    height: 2px;
+    background: rgba(255,255,255,0.08);
+    border-radius: 1px;
+    overflow: hidden;
+  }
+  .ov-bar-fill {
+    height: 100%;
+    border-radius: 1px;
+    transition: width 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .ov-bar-fill.acoustic  { background: #FF2D8E; }
+  .ov-bar-fill.semantic  { background: #8A2BE2; }
+
+  .ov-stat {
+    margin-top: 4px;
+    font-family: 'IBM Plex Mono', 'SF Mono', monospace;
+    font-size: 8px;
+    letter-spacing: 0.10em;
+    color: rgba(255,255,255,0.18);
+  }
+
+  /* ── Overlay: pending note ───── */
+  .ov-pending {
+    font-family: 'IBM Plex Mono', 'SF Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 0.12em;
+    color: rgba(255,255,255,0.18);
+    font-style: italic;
+  }
+
+  /* ── Overlay: audio ───── */
+  .ov-audio {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .ov-audio audio {
+    width: 100%;
+    height: 32px;
+    opacity: 0.7;
+    filter: invert(1) hue-rotate(200deg) brightness(0.6);
+  }
+  .ov-audio audio:focus, .ov-audio audio:hover { opacity: 1; }
+
+  /* ── Responsive: stack on narrow screens ───── */
+  @media (max-width: 600px) {
+    #overlay-card {
+      grid-template-columns: 1fr;
+      grid-template-rows: auto 1fr;
+      max-height: 95vh;
+    }
+    #overlay-fp {
+      max-height: 40vw;
+    }
+  }
+</style>
+</head>
+<body>
+
+<div id="title">whisper field<div class="subtitle">sex tech sabrina</div></div>
+<div id="grid"></div>
+
+<!-- detail overlay (hidden until a cell is clicked) -->
+<div id="overlay" hidden>
+  <div id="overlay-card">
+    <button id="overlay-close" aria-label="close">×</button>
+    <div id="overlay-fp">
+      <canvas id="overlay-canvas"></canvas>
+    </div>
+    <div id="overlay-data"></div>
+  </div>
+</div>
+
+<script src="/public/fingerprint.js"></script>
+<script>
+(async () => {
+  const INITIAL_STAGGER = 320;
+  const PARADE_START    = 15000;
+  const DARK_PAUSE      = 600;
+
+  // ── Config ────────────────────────────────────────────────────
+  let cfg = {};
+  try { cfg = await fetch('/config').then(r => r.json()); } catch {}
+
+  const THEME      = cfg.galleryTheme ?? 'dark';
+  const fpCfg = {
+    ...buildFingerprintConfig(cfg),
+    blendMode:          'screen',   // overlay canvas always on dark bg
+    semanticLabelColor: '#ffffff',
+    maskShape:          cfg.fp_maskShape ?? 'rect',
+  };
+  const fpCfgOverlay = {
+    ...buildFingerprintConfig(cfg),
+    blendMode:          'screen',
+    semanticLabelColor: '#ffffff',
+    maskShape:          'circle',
+    showSemanticLabels: true,
+  };
+  const gridFpCfg = {
+    ...fpCfg,
+    blendMode:          THEME === 'light' ? 'multiply' : 'screen',
+    semanticLabelColor: THEME === 'light' ? '#000000'  : '#ffffff',
+  };
+  const COLS          = Math.max(1, cfg.galleryCols          ?? 8);
+  const ROWS          = Math.max(1, cfg.galleryRows          ?? 4);
+  const FONT_SCALE    = cfg.galleryFontScale ?? 1.0;
+  const PARADE_INTERVAL = Math.max(2000, cfg.galleryParadeInterval ?? 10000);
+  const MAX           = Math.max(1, cfg.galleryMaxWhispers   ?? 32);
+  const TOTAL         = COLS * ROWS;
+
+  document.documentElement.className = `theme-${THEME}`;
+  document.documentElement.style.setProperty('--cols', COLS);
+  document.documentElement.style.setProperty('--rows', ROWS);
+  document.documentElement.style.setProperty('--font-scale', FONT_SCALE);
+
+  // ── Fixed card positions ──────────────────────────────────────
+  const textRow  = Math.floor(ROWS / 2);
+  const textCol  = Math.max(0, COLS - 2);
+  const TEXT_IDX = textRow * COLS + textCol;
+  const QR_IDX   = (ROWS - 1) * COLS;
+
+  function buildQrCard() {
+    const cell = document.createElement('div');
+    cell.className = 'cell cell-qr';
+    const label = document.createElement('span');
+    label.className = 'cell-qr-label';
+    label.textContent = 'scan to participate';
+    const wrap = document.createElement('div');
+    wrap.className = 'cell-qr-wrap';
+    const img = document.createElement('img');
+    img.src = '/public/qr-code.png';
+    img.alt = 'scan to participate';
+    wrap.appendChild(img);
+    cell.appendChild(label);
+    cell.appendChild(wrap);
+    return cell;
+  }
+
+  function buildTextCard() {
+    const cell = document.createElement('div');
+    cell.className = 'cell cell-text';
+    const hl = document.createElement('div');
+    hl.className = 'cell-text-hl';
+    hl.textContent = 'Record a fantasy.\nKeep the secret.';
+    const body = document.createElement('div');
+    body.className = 'cell-text-body';
+    body.textContent = 'This installation transforms recorded fantasies into unintelligible whispers, dissolving meaning while preserving intimacy.';
+    cell.appendChild(hl);
+    cell.appendChild(body);
+    return cell;
+  }
+
+  // ── Grid state ────────────────────────────────────────────────
+  const grid = document.getElementById('grid');
+  let cells   = [];
+  let cellMap = new Map();
+  let ro      = null;
+  let paradeTimer = null;
+
+  function stopAll() {
+    if (paradeTimer) { clearTimeout(paradeTimer); paradeTimer = null; }
+    if (ro) { ro.disconnect(); ro = null; }
+    cells.forEach(c => { if (c?.renderer) { c.renderer.stop(); c.renderer = null; } });
+    cells = [];
+    cellMap = new Map();
+    grid.innerHTML = '';
+  }
+
+  function activateCell(cell) {
+    if (cell.renderer) { cell.renderer.stop(); cell.renderer = null; }
+    if (cell.canvas.width < 4 || cell.canvas.height < 4) return;
+    const r = new FingerprintRenderer(cell.canvas, cell.params, gridFpCfg);
+    cell.renderer = r;
+    r.start();
+  }
+
+  function buildGrid(whispers) {
+    stopAll();
+    const n = whispers.length;
+    let wIdx = 0;
+
+    for (let i = 0; i < TOTAL; i++) {
+      if (i === TEXT_IDX) { grid.appendChild(buildTextCard()); cells.push(null); continue; }
+      if (i === QR_IDX)   { grid.appendChild(buildQrCard());  cells.push(null); continue; }
+
+      let params  = null;
+      let whisper = null;
+      if (n > 0) {
+        const realIdx  = wIdx % n;
+        const tilePass = Math.floor(wIdx / n);
+        whisper = whispers[realIdx];
+        params  = buildFingerprintParams(whisper);
+        if (tilePass > 0) params = { ...params, seed: String(params.seed) + '~' + tilePass };
+      }
+      wIdx++;
+
+      const cell   = document.createElement('div');
+      const isReal = whisper !== null && (wIdx - 1) < n;
+      cell.className = isReal ? 'cell clickable' : 'cell';
+
+      const canvas = document.createElement('canvas');
+      canvas.width = 1; canvas.height = 1;
+
+      const wspr   = document.createElement('span'); wspr.className = 'cell-wspr';
+      const phrase = document.createElement('span'); phrase.className = 'cell-phrase';
+      if (isReal) {
+        wspr.textContent = whisper.wspr ?? whisper.id?.slice(-4) ?? '';
+        const txt = (whisper.llm?.rephrased ?? '').trim();
+        phrase.textContent = txt.length > 55 ? txt.slice(0, 55) + '…' : txt;
+      }
+
+      cell.appendChild(canvas);
+      cell.appendChild(wspr);
+      cell.appendChild(phrase);
+      grid.appendChild(cell);
+
+      const cellObj = { canvas, params, renderer: null, whisper: isReal ? whisper : null };
+      cells.push(cellObj);
+      cellMap.set(canvas, cellObj);
+
+      if (isReal) {
+        cell.addEventListener('click', () => openOverlay(cellObj.whisper, whispers));
+      }
+    }
+
+    const activeCells = cells.filter(c => c !== null && c.params !== null);
+    if (activeCells.length === 0) return;
+
+    ro = new ResizeObserver(entries => {
+      for (const e of entries) {
+        const cell = cellMap.get(e.target);
+        if (!cell || !cell.params) continue;
+        const w = Math.round(e.contentRect.width);
+        const h = Math.round(e.contentRect.height);
+        if (w < 4 || h < 4 || (cell.canvas.width === w && cell.canvas.height === h)) continue;
+        cell.canvas.width  = w;
+        cell.canvas.height = h;
+        if (cell.renderer) { cell.renderer.stop(); cell.renderer = null; }
+      }
+    });
+    cells.forEach(c => { if (c) ro.observe(c.canvas); });
+
+    setTimeout(() => {
+      activeCells.forEach((cell, i) => setTimeout(() => activateCell(cell), i * INITIAL_STAGGER));
+    }, 100);
+
+    let paradeIdx = 0;
+    function paradeNext() {
+      const cell = activeCells[paradeIdx % activeCells.length];
+      paradeIdx++;
+      if (cell.renderer) {
+        cell.renderer.shrink(() => setTimeout(() => activateCell(cell), DARK_PAUSE));
+      }
+      paradeTimer = setTimeout(paradeNext, PARADE_INTERVAL);
+    }
+    paradeTimer = setTimeout(paradeNext, PARADE_START);
+  }
+
+  // ── Fetch ─────────────────────────────────────────────────────
+  async function fetchWhispers() {
+    try {
+      const data = await fetch('/whispers').then(r => r.json());
+      return (data.whispers || []).slice(0, MAX);
+    } catch { return []; }
+  }
+
+  let whispers = await fetchWhispers();
+  buildGrid(whispers);
+
+  const POLL_INTERVAL = 15000;
+  let lastFirstId = whispers[0]?.id ?? null;
+  setInterval(async () => {
+    const fresh = await fetchWhispers();
+    const newFirstId = fresh[0]?.id ?? null;
+    if (newFirstId !== lastFirstId) {
+      lastFirstId = newFirstId;
+      whispers = fresh;
+      buildGrid(whispers);
+    }
+  }, POLL_INTERVAL);
+
+  // ── Statistics ────────────────────────────────────────────────
+  const AC_KEYS  = ['breathiness', 'darkness', 'softness', 'slowness', 'pitchLowness', 'pitchSteadiness'];
+  const SEM_KEYS = ['sensory', 'relational', 'taboo', 'tenderness', 'fantasy', 'identity', 'longing', 'unspeakable'];
+
+  function buildValueArrays(all) {
+    const ac  = {};
+    const sem = {};
+    for (const k of AC_KEYS)  ac[k]  = all.map(w => w.sensuality?.components?.[k]  ?? null).filter(v => v !== null);
+    for (const k of SEM_KEYS) sem[k] = all.map(w => w.llm?.semantics?.[k] ?? null).filter(v => v !== null);
+    return { ac, sem };
+  }
+
+  function similarPercent(value, allValues, threshold = 0.15) {
+    if (value == null || allValues.length < 3) return null;
+    const count = allValues.filter(v => Math.abs(v - value) <= threshold).length;
+    return Math.round((count / allValues.length) * 100);
+  }
+
+  const AC_LABELS = {
+    breathiness:    'breathiness',
+    darkness:       'darkness',
+    softness:       'softness',
+    slowness:       'slowness',
+    pitchLowness:   'pitch lowness',
+    pitchSteadiness:'pitch steadiness',
+  };
+  const SEM_LABELS = {
+    sensory:     'sensory',
+    relational:  'relational',
+    taboo:       'taboo',
+    tenderness:  'tenderness',
+    fantasy:     'fantasy',
+    identity:    'identity',
+    longing:     'longing',
+    unspeakable: 'unspeakable',
+  };
+
+  // ── Overlay state ─────────────────────────────────────────────
+  const overlay       = document.getElementById('overlay');
+  const overlayCard   = document.getElementById('overlay-card');
+  const overlayClose  = document.getElementById('overlay-close');
+  const overlayCanvas = document.getElementById('overlay-canvas');
+  const overlayData   = document.getElementById('overlay-data');
+  let ovRenderer = null;
+
+  function audioSrc(w) {
+    const f = w.generatedWhisperFile ?? w.whisperizedFile ?? w.audioFile;
+    return f ? `/${f}` : null;
+  }
+
+  function renderBar(label, value, cssClass, pct) {
+    const fmtVal = value != null ? value.toFixed(2) : '—';
+    const widthPct = value != null ? Math.round(value * 100) : 0;
+    const statText = pct != null ? `similar to ${pct}% of whispers` : '';
+
+    return `
+      <div class="ov-dim">
+        <div class="ov-dim-header">
+          <span class="ov-dim-name">${label}</span>
+          <span class="ov-dim-val">${fmtVal}</span>
+        </div>
+        <div class="ov-bar-track">
+          <div class="ov-bar-fill ${cssClass}" style="width:${widthPct}%"></div>
+        </div>
+        ${statText ? `<div class="ov-stat">${statText}</div>` : ''}
+      </div>`;
+  }
+
+  function openOverlay(w, all) {
+    // Stop any existing overlay renderer
+    if (ovRenderer) { ovRenderer.stop(); ovRenderer = null; }
+
+    const { ac: acVals, sem: semVals } = buildValueArrays(all);
+
+    // Build data panel HTML
+    const dateStr = w.createdAt
+      ? new Date(w.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
+      : '';
+    const rephrased = (w.llm?.rephrased ?? w.transcript ?? '').trim();
+    const score = w.sensuality?.score;
+    const partial = w.sensuality?.partial;
+    const comp = w.sensuality?.components ?? {};
+    const sem  = w.llm?.semantics ?? null;
+    const src  = audioSrc(w);
+
+    // Top semantic tags (top 2 by score)
+    let semTopHtml = '';
+    if (sem) {
+      const sorted = SEM_KEYS
+        .map(k => ({ k, v: sem[k] ?? 0 }))
+        .sort((a, b) => b.v - a.v)
+        .slice(0, 2)
+        .filter(x => x.v > 0.3);
+      if (sorted.length) {
+        semTopHtml = `<div class="ov-sem-top">${sorted.map(x => `<strong>${SEM_LABELS[x.k]}</strong>`).join(' · ')}</div>`;
+      }
+    }
+
+    // Acoustic bars
+    const acBarsHtml = AC_KEYS.map(k => {
+      const val = comp[k] ?? null;
+      const pct = similarPercent(val, acVals[k]);
+      return renderBar(AC_LABELS[k], val, 'acoustic', pct);
+    }).join('');
+
+    // Semantic bars
+    let semSection = '';
+    if (sem) {
+      const semBarsHtml = SEM_KEYS.map(k => {
+        const val = sem[k] ?? null;
+        const pct = similarPercent(val, semVals[k]);
+        return renderBar(SEM_LABELS[k], val, 'semantic', pct);
+      }).join('');
+      semSection = `
+        <div>
+          <div class="ov-section-title">desire</div>
+          ${semTopHtml}
+          ${semBarsHtml}
+        </div>`;
+    } else {
+      semSection = `
+        <div>
+          <div class="ov-section-title">desire</div>
+          <div class="ov-pending">semantic analysis pending…</div>
+        </div>`;
+    }
+
+    // Audio
+    const audioHtml = src
+      ? `<div class="ov-audio">
+           <div class="ov-section-title">playback</div>
+           <audio controls src="${src}"></audio>
+         </div>`
+      : '';
+
+    overlayData.innerHTML = `
+      <div class="ov-wspr"><span>${w.wspr ?? w.id?.slice(-4) ?? '—'}</span>${dateStr}</div>
+      ${rephrased ? `<div class="ov-rephrased">${rephrased}</div>` : ''}
+      ${score != null ? `
+        <div>
+          <div class="ov-score-row">
+            <div class="ov-score-num">${(score * 100).toFixed(0)}</div>
+            <div class="ov-score-label">sensuality index</div>
+          </div>
+          ${partial ? '<div class="ov-partial">partial — some features missing</div>' : ''}
+        </div>` : ''}
+      <div>
+        <div class="ov-section-title">acoustic</div>
+        ${acBarsHtml}
+      </div>
+      ${semSection}
+      ${audioHtml}
+    `;
+
+    // Show overlay, then start renderer after layout settles
+    overlay.removeAttribute('hidden');
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      const rect = overlayCanvas.getBoundingClientRect();
+      const w2 = Math.round(rect.width);
+      const h2 = Math.round(rect.height);
+      if (w2 > 4 && h2 > 4) {
+        overlayCanvas.width  = w2;
+        overlayCanvas.height = h2;
+      }
+      const params = buildFingerprintParams(w);
+      ovRenderer = new FingerprintRenderer(overlayCanvas, params, fpCfgOverlay);
+      ovRenderer.start();
+    }));
+  }
+
+  function closeOverlay() {
+    if (ovRenderer) {
+      ovRenderer.shrink(() => {
+        overlay.setAttribute('hidden', '');
+        if (ovRenderer) { ovRenderer.stop(); ovRenderer = null; }
+      });
+    } else {
+      overlay.setAttribute('hidden', '');
+    }
+  }
+
+  overlayClose.addEventListener('click', closeOverlay);
+
+  overlay.addEventListener('click', e => {
+    if (e.target === overlay) closeOverlay();
+  });
+
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && !overlay.hasAttribute('hidden')) closeOverlay();
+  });
+
+})();
+</script>
+</body>
+</html>

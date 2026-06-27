@@ -476,7 +476,7 @@ function callOllama(transcript) {
   });
 }
 
-function generateVocalScore(affect = {}) {
+function generateVocalScore(affect = {}, semantics = {}) {
   const clamp = (v, d) => Math.min(1, Math.max(0, Number(affect[v] ?? d)));
   const breathiness = clamp("breathiness", 0.5);
   const warmth      = clamp("warmth",      0.5);
@@ -486,7 +486,7 @@ function generateVocalScore(affect = {}) {
   const tempo       = clamp("tempo",       0.4);
 
   const pick  = arr => arr[Math.floor(Math.random() * arr.length)];
-  const pause = () => tempo < 0.35 ? " ... " : "... ";
+  const p     = () => tempo < 0.35 ? " ... " : "... ";
 
   const airy  = ["shhhh", "ffhhh", "hhh",  "haaa"];
   const hums  = ["mmm",   "hmm",   "mhm",  "hmmm"];
@@ -499,17 +499,70 @@ function generateVocalScore(affect = {}) {
   const count = Math.round(3 + energy * 5);
   for (let i = 0; i < count; i++) {
     const r = Math.random();
-    if      (r < breathiness * 0.45)       events.push(pick(airy));
-    else if (r < tension * 0.3 + 0.2)      events.push(pick(tense));
-    else if (r < warmth * 0.5 + 0.35)      events.push(pick(vocal));
-    else                                    events.push(pick(hums));
+    if      (r < breathiness * 0.45)   events.push(pick(airy));
+    else if (r < tension * 0.3 + 0.2)  events.push(pick(tense));
+    else if (r < warmth * 0.5 + 0.35)  events.push(pick(vocal));
+    else                               events.push(pick(hums));
   }
 
   if (playfulness > 0.55) events.push("mhm");
   if (warmth      > 0.60) events.push("mmm");
   if (breathiness > 0.45) events.push("shhhh");
 
-  return "[whispering] " + events.join(pause());
+  // Find the dominant semantic dimension (if any score > 0.5)
+  const SEM_PHRASES = {
+    sensory:     { carriers: ["a hunger of",      "a taste of",       "a texture of",    "a feel of"],
+                   nouns:    ["skin",              "warmth",           "silk",            "touch",       "heat"] },
+    relational:  { carriers: ["a closeness of",   "a merging of",     "a presence of",   "a nearness of"],
+                   nouns:    ["breath",            "warmth",           "skin",            "bodies",      "closeness"] },
+    taboo:       { carriers: ["a secret of",      "a shadow of",      "a glimpse of",    "a trace of"],
+                   nouns:    ["desire",            "darkness",         "forbidden",       "hunger",      "shame"] },
+    tenderness:  { carriers: ["a softness of",    "a gentleness of",  "a quietness of",  "a tenderness of"],
+                   nouns:    ["light",             "silk",             "touch",           "morning",     "breath"] },
+    fantasy:     { carriers: ["a dream of",       "a shimmer of",     "a vision of",     "an imagining of"],
+                   nouns:    ["flight",            "elsewhere",        "warmth",          "fire",        "sky"] },
+    identity:    { carriers: ["a trace of",       "an echo of",       "a knowing of",    "a remembering of"],
+                   nouns:    ["self",              "desire",           "skin",            "name",        "body"] },
+    longing:     { carriers: ["an ache of",       "a reaching of",    "a yearning of",   "a longing of"],
+                   nouns:    ["distance",          "light",            "silk",            "touch",       "return"] },
+    unspeakable: { carriers: ["a depth of",       "a wordlessness of","a weight of",     "a silence of"],
+                   nouns:    ["night",             "darkness",         "absence",         "the unnamed",  "void"] },
+  };
+
+  const semKeys = Object.keys(SEM_PHRASES);
+  const dominant = semKeys.reduce((a, b) =>
+    Number(semantics[a] ?? 0) >= Number(semantics[b] ?? 0) ? a : b, semKeys[0]);
+  const domScore = Number(semantics[dominant] ?? 0);
+
+  let carriers, nouns;
+  if (domScore > 0.5) {
+    ({ carriers, nouns } = SEM_PHRASES[dominant]);
+  } else {
+    // Fallback: affect-driven
+    carriers = breathiness > 0.60
+      ? ["a whisper of", "a breath of",  "a trace of",  "a veil of"]
+      : tension     > 0.50
+      ? ["a glimpse of", "an ache of",   "a pull of",   "an edge of"]
+      : playfulness > 0.55
+      ? ["a shimmer of", "a thought of", "a flicker of","a hint of"]
+      : ["a shadow of",  "an echo of",   "a dream of",  "a touch of"];
+    nouns = warmth > 0.60
+      ? ["silk", "skin", "warmth", "curves",  "desire"]
+      : tension     > 0.50
+      ? ["seduction", "hunger", "longing",   "tension"]
+      : breathiness > 0.55
+      ? ["mist", "vapor", "air",   "light"]
+      : ["darkness", "depth", "silence",    "night"];
+  }
+
+  const phrase = `${pick(carriers)} ${pick(nouns)}`;
+
+  // Phrase sits in the middle: phonetics ... phrase ... phonetics
+  const mid    = Math.ceil(events.length / 2);
+  const first  = events.slice(0, mid).join(p());
+  const second = events.slice(mid).join(p());
+
+  return "[whispering] " + first + " ... " + phrase + " ... " + second;
 }
 
 function callElevenLabs(vocalScore, outputPath) {
@@ -629,7 +682,7 @@ async function saveWhisper(payload, { waitForAnalysis = false } = {}) {
             await writeFile(recordPath, `${JSON.stringify(r, null, 2)}\n`, "utf8");
             console.log(`[ollama] ${id} → "${(ollamaResult.rephrased || "").slice(0, 60)}"`);
             if (ollamaResult.affect) {
-              const vocalScore = generateVocalScore(ollamaResult.affect);
+              const vocalScore = generateVocalScore(ollamaResult.affect, ollamaResult.semantics);
               const genPath    = path.join(RECORDINGS_DIR, `${id}-generated.mp3`);
               const genResult  = await callElevenLabs(vocalScore, genPath);
               if (genResult) {
@@ -671,7 +724,7 @@ async function saveWhisper(payload, { waitForAnalysis = false } = {}) {
               await writeFile(recordPath, `${JSON.stringify(existing, null, 2)}\n`, "utf8");
               console.log(`[ollama] ${id} → "${(ollamaResult.rephrased || "").slice(0, 60)}"`);
               if (ollamaResult.affect) {
-                const vocalScore = generateVocalScore(ollamaResult.affect);
+                const vocalScore = generateVocalScore(ollamaResult.affect, ollamaResult.semantics);
                 const genPath    = path.join(RECORDINGS_DIR, `${id}-generated.mp3`);
                 const genResult  = await callElevenLabs(vocalScore, genPath);
                 if (genResult) {
@@ -798,7 +851,7 @@ async function route(request, response) {
       return;
     }
 
-    const vocalScore = generateVocalScore(r.llm.affect);
+    const vocalScore = generateVocalScore(r.llm.affect, r.llm.semantics);
     const genPath    = path.join(RECORDINGS_DIR, `${id}-generated.mp3`);
     const genResult  = await callElevenLabs(vocalScore, genPath);
     if (!genResult) {
@@ -831,6 +884,11 @@ async function route(request, response) {
 
   if (request.method === "GET" && (url.pathname === "/gallery" || url.pathname === "/gallery.html")) {
     await sendFile(response, path.join(PUBLIC_DIR, "gallery.html"), "text/html; charset=utf-8");
+    return;
+  }
+
+  if (request.method === "GET" && (url.pathname === "/gallery-interactive" || url.pathname === "/gallery_interactive.html")) {
+    await sendFile(response, path.join(PUBLIC_DIR, "gallery_interactive.html"), "text/html; charset=utf-8");
     return;
   }
 
