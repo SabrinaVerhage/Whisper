@@ -455,11 +455,12 @@ class FingerprintRenderer {
     const ox = (orbitX * (1 - settleEase) + (blob.restX ?? 0) * settleEase) * sf;
     const oy = (orbitY * (1 - settleEase) + (blob.restY ?? 0) * settleEase) * sf;
     const R = Math.min(this._canvas.width, this._canvas.height) * 0.5;
-    const fontSize = Math.max(7, Math.round(R * 0.10));
+    const fontSize = Math.max(7, Math.round(R * 0.065));
     ctx.save();
     ctx.globalCompositeOperation = 'source-over';
     ctx.globalAlpha = settleEase * sf * 0.72;
-    ctx.font = `${fontSize}px sans-serif`;
+    ctx.font = `500 ${fontSize}px 'IBM Plex Mono','SF Mono',ui-monospace,monospace`;
+    ctx.letterSpacing = '0.05em';
     ctx.fillStyle = this._cfg.semanticLabelColor;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
