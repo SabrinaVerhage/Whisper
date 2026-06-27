@@ -421,9 +421,10 @@ function runPythonAnalysis(audioFilePath, { extraArgs = [], timeoutMs = 60_000 }
 
 const OLLAMA_MODEL = "dolphin-mistral";
 
-const ELEVENLABS_API_KEY  = process.env.ELEVENLABS_API_KEY  || "";
-const ELEVENLABS_VOICE_ID = process.env.ELEVENLABS_VOICE_ID || "";
-const ELEVENLABS_MODEL    = "eleven_v3";
+const ELEVENLABS_API_KEY       = process.env.ELEVENLABS_API_KEY        || "";
+const ELEVENLABS_VOICE_ID      = process.env.ELEVENLABS_VOICE_ID       || "";
+const ELEVENLABS_MALE_VOICE_ID = process.env.ELEVENLABS_MALE_VOICE_ID  || "17JdVkQHD6PE3HPohzr2";
+const ELEVENLABS_MODEL         = "eleven_v3";
 const OLLAMA_PROMPT = (transcript) => `You are part of an anonymous art installation where visitors whisper their intimate desires, secrets, and longings. Respond with a JSON object only — no markdown, no code fences, no explanation before or after.
 
 Required keys:
@@ -556,9 +557,14 @@ function generateVocalScore(affect = {}, semantics = {}) {
   return before + gap + "[whispering] " + phrase + gap + after;
 }
 
-function callElevenLabs(vocalScore, outputPath) {
-  if (!ELEVENLABS_API_KEY || !ELEVENLABS_VOICE_ID) {
-    console.warn("[elevenlabs] ELEVENLABS_API_KEY or ELEVENLABS_VOICE_ID not set — skipping");
+function pickVoiceId() {
+  const voices = [ELEVENLABS_VOICE_ID, ELEVENLABS_MALE_VOICE_ID].filter(Boolean);
+  return voices[Math.floor(Math.random() * voices.length)];
+}
+
+function callElevenLabs(vocalScore, outputPath, voiceId = ELEVENLABS_VOICE_ID) {
+  if (!ELEVENLABS_API_KEY || !voiceId) {
+    console.warn("[elevenlabs] ELEVENLABS_API_KEY or voice ID not set — skipping");
     return Promise.resolve(null);
   }
   return new Promise((resolve) => {
@@ -569,7 +575,7 @@ function callElevenLabs(vocalScore, outputPath) {
     });
     const req = httpsRequest(
       { hostname: "api.elevenlabs.io",
-        path: `/v1/text-to-speech/${ELEVENLABS_VOICE_ID}`,
+        path: `/v1/text-to-speech/${voiceId}`,
         method: "POST",
         headers: { "xi-api-key": ELEVENLABS_API_KEY, "Content-Type": "application/json",
                    "Content-Length": Buffer.byteLength(body) } },
@@ -670,16 +676,16 @@ async function saveWhisper(payload, { waitForAnalysis = false } = {}) {
             r.llm = { ...(r.llm || {}), ...ollamaResult, model: OLLAMA_MODEL };
             await writeFile(recordPath, `${JSON.stringify(r, null, 2)}\n`, "utf8");
             console.log(`[ollama] ${id} → "${(ollamaResult.rephrased || "").slice(0, 60)}"`);
-            if (ollamaResult.affect) {
-              const vocalScore = generateVocalScore(ollamaResult.affect, ollamaResult.semantics);
-              const genPath    = path.join(RECORDINGS_DIR, `${id}-generated.mp3`);
-              const genResult  = await callElevenLabs(vocalScore, genPath);
-              if (genResult) {
-                r.generatedWhisperFile = `recordings/${id}-generated.mp3`;
-                r.vocalScore           = vocalScore;
-                await writeFile(recordPath, `${JSON.stringify(r, null, 2)}\n`, "utf8");
-                console.log(`[elevenlabs] ${id} — "${vocalScore.slice(0, 70)}"`);
-              }
+            const vocalScore  = generateVocalScore(ollamaResult.affect ?? {}, ollamaResult.semantics ?? {});
+            const genPath     = path.join(RECORDINGS_DIR, `${id}-generated.mp3`);
+            const chosenVoice = pickVoiceId();
+            const genResult   = await callElevenLabs(vocalScore, genPath, chosenVoice);
+            if (genResult) {
+              r.generatedWhisperFile = `recordings/${id}-generated.mp3`;
+              r.vocalScore           = vocalScore;
+              r.generatedVoice       = chosenVoice === ELEVENLABS_MALE_VOICE_ID ? "male" : "female";
+              await writeFile(recordPath, `${JSON.stringify(r, null, 2)}\n`, "utf8");
+              console.log(`[elevenlabs] ${id} [${r.generatedVoice}] — "${vocalScore.slice(0, 70)}"`);
             }
           }
         } catch {}
@@ -711,16 +717,16 @@ async function saveWhisper(payload, { waitForAnalysis = false } = {}) {
               existing.llm = { ...(existing.llm || {}), ...ollamaResult, model: OLLAMA_MODEL };
               await writeFile(recordPath, `${JSON.stringify(existing, null, 2)}\n`, "utf8");
               console.log(`[ollama] ${id} → "${(ollamaResult.rephrased || "").slice(0, 60)}"`);
-              if (ollamaResult.affect) {
-                const vocalScore = generateVocalScore(ollamaResult.affect, ollamaResult.semantics);
-                const genPath    = path.join(RECORDINGS_DIR, `${id}-generated.mp3`);
-                const genResult  = await callElevenLabs(vocalScore, genPath);
-                if (genResult) {
-                  existing.generatedWhisperFile = `recordings/${id}-generated.mp3`;
-                  existing.vocalScore           = vocalScore;
-                  await writeFile(recordPath, `${JSON.stringify(existing, null, 2)}\n`, "utf8");
-                  console.log(`[elevenlabs] ${id} — "${vocalScore.slice(0, 70)}"`);
-                }
+              const vocalScore  = generateVocalScore(ollamaResult.affect ?? {}, ollamaResult.semantics ?? {});
+              const genPath     = path.join(RECORDINGS_DIR, `${id}-generated.mp3`);
+              const chosenVoice = pickVoiceId();
+              const genResult   = await callElevenLabs(vocalScore, genPath, chosenVoice);
+              if (genResult) {
+                existing.generatedWhisperFile = `recordings/${id}-generated.mp3`;
+                existing.vocalScore           = vocalScore;
+                existing.generatedVoice       = chosenVoice === ELEVENLABS_MALE_VOICE_ID ? "male" : "female";
+                await writeFile(recordPath, `${JSON.stringify(existing, null, 2)}\n`, "utf8");
+                console.log(`[elevenlabs] ${id} [${existing.generatedVoice}] — "${vocalScore.slice(0, 70)}"`);
               }
             }
           }
@@ -834,14 +840,15 @@ async function route(request, response) {
       }
     }
 
-    if (!r.llm?.affect) {
-      json(response, 422, { error: "No affect data — Ollama must succeed first (is it running with dolphin-mistral?)" });
+    if (!r.llm) {
+      json(response, 422, { error: "No LLM data — Ollama must succeed first (is it running with dolphin-mistral?)" });
       return;
     }
 
-    const vocalScore = generateVocalScore(r.llm.affect, r.llm.semantics);
-    const genPath    = path.join(RECORDINGS_DIR, `${id}-generated.mp3`);
-    const genResult  = await callElevenLabs(vocalScore, genPath);
+    const vocalScore  = generateVocalScore(r.llm.affect ?? {}, r.llm.semantics ?? {});
+    const genPath     = path.join(RECORDINGS_DIR, `${id}-generated.mp3`);
+    const chosenVoice = pickVoiceId();
+    const genResult   = await callElevenLabs(vocalScore, genPath, chosenVoice);
     if (!genResult) {
       json(response, 502, { error: "ElevenLabs call failed — check server logs for HTTP status." });
       return;
@@ -849,8 +856,9 @@ async function route(request, response) {
 
     r.generatedWhisperFile = `recordings/${id}-generated.mp3`;
     r.vocalScore           = vocalScore;
+    r.generatedVoice       = chosenVoice === ELEVENLABS_MALE_VOICE_ID ? "male" : "female";
     await writeFile(recordPath, `${JSON.stringify(r, null, 2)}\n`, "utf8");
-    console.log(`[elevenlabs] ${id} regenerated — "${vocalScore.slice(0, 70)}"`);
+    console.log(`[elevenlabs] ${id} [${r.generatedVoice}] regenerated — "${vocalScore.slice(0, 70)}"`);
     json(response, 200, r);
     return;
   }

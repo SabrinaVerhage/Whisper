@@ -47,10 +47,10 @@ void main() {
   vec3 rose   = vec3(0.980, 0.800, 0.870);
 
   vec3 col = paper;
-  col = mix(col, pink,   w1 * 0.52);
-  col = mix(col, purple, w2 * 0.44);
-  col = mix(col, amber,  w3 * 0.36);
-  col = mix(col, rose,   w4 * 0.30);
+  col = mix(col, pink,   w1 * 0.72);
+  col = mix(col, purple, w2 * 0.62);
+  col = mix(col, amber,  w3 * 0.52);
+  col = mix(col, rose,   w4 * 0.42);
   gl_FragColor = vec4(clamp(col, 0.0, 1.0), 1.0);
 }
 `.trim();
@@ -292,8 +292,8 @@ const SCREENS = ['splash', 'record', 'analyzing', 'done'];
 const SCREEN_SPEED = {
   splash:    0.10,
   record:    0.18,
-  analyzing: 0.20,
-  done:      0.08,
+  analyzing: 0.50,
+  done:      0.05,
 };
 
 function showScreen(id) {
@@ -491,7 +491,7 @@ function abortRecording() {
   chunks = [];
   document.getElementById('recIndicator').classList.remove('visible');
   document.getElementById('backButton').style.visibility = '';
-  document.getElementById('recordCtaHeadline').textContent = 'hold to whisper';
+  document.getElementById('recordCtaHeadline').textContent = 'press and hold to record';
   document.getElementById('recordCtaSub').textContent = 'no one will know';
   document.getElementById('liveSIScore')?.classList.remove('recording');
   // Restore circle to breathing state
@@ -632,6 +632,7 @@ function postLiveFeatures(features) {
 
 /* ── Analyzing screen ───────────────────────────────────────────── */
 async function startAnalyzing() {
+  shaderAmplitude = 0.7;
   const headline = document.getElementById('analyzingHeadline');
   if (headline) headline.innerHTML = 'generating your<br>desire fingerprint';
 
@@ -671,6 +672,7 @@ async function startAnalyzing() {
   // so the user always sees the fully settled fingerprint before the shrink.
   await new Promise(r => setTimeout(r, 6000));
 
+  shaderAmplitude = 0;
   stopFingerprintOnCanvas();
   showScreen('done');
 }
@@ -742,7 +744,8 @@ function startFingerprintOnDoneCanvas() {
   canvas.style.height = sh + 'px';
   canvas.hidden = false;
   if (currentFingerprint) currentFingerprint.stop();
-  currentFingerprint = new FingerprintRenderer(canvas, lastFingerprintParams, _recorderFpCfg);
+  const doneCfg = Object.assign({}, _recorderFpCfg, { formingMs: 0, settlingMs: 0 });
+  currentFingerprint = new FingerprintRenderer(canvas, lastFingerprintParams, doneCfg);
   currentFingerprint.start();
 }
 

@@ -10,22 +10,19 @@
     * { box-sizing: border-box; margin: 0; padding: 0; }
 
     body {
-      background: radial-gradient(130% 110% at 50% 0%, #EFEDE9, #DCD7CF);
+      background: #0a0608;
       color: #141018;
       font-family: 'IBM Plex Mono', 'SF Mono', ui-monospace, monospace;
       font-size: 12px;
       height: 100dvh;
       overflow: hidden;
       -webkit-font-smoothing: antialiased;
-      position: relative;
     }
 
     /* ── Header ── */
     #atlasHeader {
       position: absolute;
-      top: 0;
-      left: 0;
-      right: 0;
+      top: 0; left: 0; right: 0;
       z-index: 10;
       display: flex;
       align-items: center;
@@ -33,261 +30,185 @@
       padding: 14px 20px 12px;
       gap: 16px;
       pointer-events: none;
-      background: linear-gradient(to bottom, rgba(239,237,233,0.60) 0%, transparent 100%);
+      background: linear-gradient(to bottom, rgba(10,6,8,0.80) 0%, transparent 100%);
     }
     .atlas-title-wrap { display: flex; flex-direction: column; gap: 3px; }
     #atlasHeader h1 {
-      font-size: 14px;
-      font-weight: 600;
+      font-size: 14px; font-weight: 600;
       letter-spacing: 0.03em;
-      color: #141018;
+      color: rgba(255,255,255,0.88);
     }
     #atlasSubtitle {
-      font-size: 8.5px;
-      letter-spacing: 0.06em;
-      color: rgba(20,16,24,0.46);
-      text-transform: uppercase;
+      font-size: 8.5px; letter-spacing: 0.06em;
+      color: rgba(255,255,255,0.36); text-transform: uppercase;
     }
-    #atlasViewers {
-      display: flex;
-      align-items: center;
-      gap: 10px;
+    #atlasRight {
+      display: flex; align-items: center; gap: 12px;
+      pointer-events: auto;
     }
     .viewer-dot-wrap {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      font-size: 8.5px;
-      color: rgba(20,16,24,0.60);
+      display: flex; align-items: center; gap: 6px;
+      font-size: 8.5px; color: rgba(255,255,255,0.45);
     }
     .viewer-dot {
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-      flex-shrink: 0;
+      width: 8px; height: 8px;
+      border-radius: 50%; flex-shrink: 0;
+    }
+    #autoRotateBtn {
+      background: rgba(255,255,255,0.07);
+      border: 1px solid rgba(255,255,255,0.13);
+      color: rgba(255,255,255,0.48);
+      font: 500 8px 'IBM Plex Mono', monospace;
+      letter-spacing: 0.08em; text-transform: uppercase;
+      padding: 5px 11px; border-radius: 12px;
+      cursor: pointer; transition: background 0.2s, color 0.2s, border-color 0.2s;
+    }
+    #autoRotateBtn:hover,
+    #autoRotateBtn.active {
+      background: rgba(144,85,212,0.25);
+      border-color: rgba(144,85,212,0.48);
+      color: rgba(200,168,255,0.88);
     }
 
     /* ── Body ── */
-    #atlasBody {
-      position: absolute;
-      inset: 0;
-      display: flex;
-    }
+    #atlasBody { position: absolute; inset: 0; display: flex; }
 
     /* ── Canvas wrap ── */
     .canvas-wrap {
-      flex: 1;
-      position: relative;
-      overflow: hidden;
-      min-width: 0;
+      flex: 1; position: relative;
+      overflow: hidden; min-width: 0;
     }
-    #fieldCanvas {
-      position: absolute;
-      inset: 0;
-      width: 100%;
-      height: 100%;
-      cursor: crosshair;
+    #canvasContainer {
+      position: absolute; inset: 0;
+      cursor: grab;
     }
-    /* SVG grain overlay */
+    #canvasContainer:active { cursor: grabbing; }
+    #canvasContainer canvas {
+      display: block;
+      width: 100% !important;
+      height: 100% !important;
+    }
+
+    /* Grain */
     .grain-overlay {
-      position: absolute;
-      inset: 0;
-      width: 100%;
-      height: 100%;
+      position: absolute; inset: 0;
+      width: 100%; height: 100%;
       pointer-events: none;
-      mix-blend-mode: soft-light;
-      opacity: 0.38;
+      mix-blend-mode: overlay;
+      opacity: 0.16;
     }
 
     /* ── Detail panel ── */
     #detailPanel {
-      width: 260px;
-      flex-shrink: 0;
-      background: rgba(243,241,237,0.92);
+      width: 260px; flex-shrink: 0;
+      background: rgba(10,6,8,0.92);
       backdrop-filter: blur(8px);
-      border-left: 1px solid rgba(20,16,24,0.10);
-      display: flex;
-      flex-direction: column;
+      border-left: 1px solid rgba(255,255,255,0.07);
+      display: flex; flex-direction: column;
       padding: 54px 20px 18px;
-      gap: 0;
       overflow-y: auto;
     }
     .dp-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: baseline;
-      margin-bottom: 14px;
+      display: flex; justify-content: space-between;
+      align-items: baseline; margin-bottom: 14px;
     }
     .dp-label {
-      font-size: 8px;
-      letter-spacing: 0.12em;
-      color: rgba(20,16,24,0.46);
-      text-transform: uppercase;
+      font-size: 8px; letter-spacing: 0.12em;
+      color: rgba(255,255,255,0.28); text-transform: uppercase;
     }
     #dpBy {
-      font-size: 8px;
-      letter-spacing: 0.06em;
-      color: rgba(20,16,24,0.36);
+      font-size: 8px; letter-spacing: 0.06em;
+      color: rgba(255,255,255,0.20);
     }
     #dpTags {
-      display: flex;
-      gap: 6px;
-      flex-wrap: wrap;
-      margin-bottom: 14px;
-      min-height: 22px;
+      display: flex; gap: 6px; flex-wrap: wrap;
+      margin-bottom: 14px; min-height: 22px;
     }
     .dp-tag {
-      font-size: 9px;
-      padding: 4px 9px;
-      border-radius: 12px;
-      letter-spacing: 0.06em;
-      font-weight: 500;
+      font-size: 9px; padding: 4px 9px;
+      border-radius: 12px; letter-spacing: 0.06em; font-weight: 500;
     }
     .dp-tag--primary { color: #fff; }
-    .dp-tag--secondary {
-      background: rgba(20,16,24,0.08);
-      color: rgba(20,16,24,0.60);
-    }
+    .dp-tag--secondary { background: rgba(255,255,255,0.08); color: rgba(255,255,255,0.48); }
     .dp-quote-label {
-      font-size: 7.5px;
-      letter-spacing: 0.12em;
-      color: rgba(20,16,24,0.40);
-      text-transform: uppercase;
-      margin-bottom: 8px;
+      font-size: 7.5px; letter-spacing: 0.12em;
+      color: rgba(255,255,255,0.26); text-transform: uppercase; margin-bottom: 8px;
     }
     #dpQuote {
-      font-size: 15px;
-      line-height: 1.45;
-      font-style: italic;
-      color: #141018;
-      margin-bottom: 18px;
-      min-height: 42px;
+      font-size: 15px; line-height: 1.45; font-style: italic;
+      color: rgba(255,255,255,0.86); margin-bottom: 18px; min-height: 42px;
     }
-    .dp-si-row {
-      display: flex;
-      align-items: baseline;
-      gap: 8px;
-      margin-bottom: 16px;
-    }
-    #dpSIScore {
-      font-size: 38px;
-      font-weight: 600;
-      line-height: 1;
-      color: #141018;
-    }
+    .dp-si-row { display: flex; align-items: baseline; gap: 8px; margin-bottom: 16px; }
+    #dpSIScore { font-size: 38px; font-weight: 600; line-height: 1; color: rgba(255,255,255,0.88); }
     .dp-si-pct { font-size: 14px; font-weight: 400; }
     .dp-si-desc {
-      font-size: 7.5px;
-      letter-spacing: 0.10em;
-      color: rgba(20,16,24,0.46);
-      text-transform: uppercase;
-      line-height: 1.4;
+      font-size: 7.5px; letter-spacing: 0.10em;
+      color: rgba(255,255,255,0.32); text-transform: uppercase; line-height: 1.4;
     }
     .dp-section-label {
-      font-size: 7.5px;
-      letter-spacing: 0.10em;
-      color: rgba(20,16,24,0.46);
-      text-transform: uppercase;
-      margin-bottom: 8px;
-      margin-top: 6px;
+      font-size: 7.5px; letter-spacing: 0.10em;
+      color: rgba(255,255,255,0.28); text-transform: uppercase;
+      margin-bottom: 8px; margin-top: 6px;
     }
     .dp-bars { display: flex; flex-direction: column; gap: 5px; margin-bottom: 4px; }
-    .dp-bar-row {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-    }
+    .dp-bar-row { display: flex; align-items: center; gap: 6px; }
     .dp-bar-label {
-      font-size: 8.5px;
-      color: rgba(20,16,24,0.60);
-      width: 78px;
-      flex-shrink: 0;
-      text-align: right;
-      letter-spacing: 0.03em;
+      font-size: 8.5px; color: rgba(255,255,255,0.42);
+      width: 78px; flex-shrink: 0; text-align: right; letter-spacing: 0.03em;
     }
     .dp-bar-track {
-      flex: 1;
-      height: 4px;
-      background: rgba(20,16,24,0.08);
-      border-radius: 2px;
-      overflow: hidden;
+      flex: 1; height: 4px;
+      background: rgba(255,255,255,0.08); border-radius: 2px; overflow: hidden;
     }
-    .dp-bar-fill {
-      height: 100%;
-      border-radius: 2px;
-      transition: width 0.3s ease;
-    }
+    .dp-bar-fill { height: 100%; border-radius: 2px; transition: width 0.3s ease; }
     .dp-bar-val {
-      font-size: 8px;
-      color: rgba(20,16,24,0.40);
-      width: 26px;
-      text-align: right;
+      font-size: 8px; color: rgba(255,255,255,0.26);
+      width: 26px; text-align: right;
     }
     #dpFooter {
-      margin-top: auto;
-      padding-top: 14px;
-      font-size: 7.5px;
-      color: rgba(20,16,24,0.35);
-      letter-spacing: 0.05em;
-      line-height: 1.6;
+      margin-top: auto; padding-top: 14px;
+      font-size: 7.5px; color: rgba(255,255,255,0.20);
+      letter-spacing: 0.05em; line-height: 1.6;
     }
 
-    /* ── Empty detail state ── */
+    /* ── Empty state ── */
     .dp-empty {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      gap: 8px;
-      color: rgba(20,16,24,0.25);
-      font-size: 11px;
-      text-align: center;
-      padding: 24px;
+      flex: 1; display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      gap: 8px; color: rgba(255,255,255,0.18);
+      font-size: 11px; text-align: center; padding: 24px;
     }
     .dp-empty-icon { font-size: 28px; opacity: 0.4; }
 
-    /* ── Loading state ── */
+    /* ── Loading ── */
     .center-msg {
-      position: absolute;
-      inset: 0;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      gap: 10px;
-      color: rgba(20,16,24,0.36);
-      font-size: 12px;
+      position: absolute; inset: 0;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      gap: 10px; color: rgba(255,255,255,0.28);
+      font-size: 12px; font-family: 'IBM Plex Mono', monospace;
+      pointer-events: none;
     }
 
-    /* ── Fingerprint hover overlay ── */
+    /* ── Fingerprint overlay ── */
     #umapFpCanvas {
-      position: absolute;
-      pointer-events: none;
-      z-index: 5;
+      position: absolute; pointer-events: none; z-index: 5;
     }
     #umapFpLabel {
-      position: absolute;
-      pointer-events: none;
-      z-index: 6;
+      position: absolute; pointer-events: none; z-index: 6;
       font: 500 8px 'IBM Plex Mono', monospace;
-      letter-spacing: 0.10em;
-      text-transform: uppercase;
+      letter-spacing: 0.10em; text-transform: uppercase;
       color: rgba(255,255,255,0.88);
-      background: rgba(10,8,14,0.65);
-      padding: 4px 9px;
-      border-radius: 4px;
-      white-space: nowrap;
-      transform: translateX(-50%);
-      opacity: 0;
-      transition: opacity 0.3s ease;
+      background: rgba(10,6,14,0.72);
+      padding: 4px 9px; border-radius: 4px;
+      white-space: nowrap; transform: translateX(-50%);
+      opacity: 0; transition: opacity 0.3s ease;
     }
     #umapFpLabel.visible { opacity: 1; }
   </style>
 </head>
 <body>
 
-<!-- Grain filter definition (reused by SVG) -->
 <svg style="position:absolute;width:0;height:0">
   <defs>
     <filter id="grain-filter">
@@ -302,36 +223,32 @@
     <h1>Whisper Atlas</h1>
     <span id="atlasSubtitle">loading…</span>
   </div>
-  <div id="atlasViewers">
-    <!-- viewer dots injected by JS -->
+  <div id="atlasRight">
+    <button id="autoRotateBtn">orbit</button>
+    <div id="viewerDots"></div>
   </div>
 </div>
 
 <div id="atlasBody">
   <div class="canvas-wrap">
-    <canvas id="fieldCanvas"></canvas>
+    <div id="canvasContainer"></div>
 
-    <!-- Fingerprint overlay canvas (transparent, same as mobile) -->
     <canvas id="umapFpCanvas" hidden></canvas>
-    <!-- Fingerprint code label -->
     <div id="umapFpLabel"></div>
 
-    <!-- Grain overlay -->
     <svg class="grain-overlay" aria-hidden="true">
       <rect width="100%" height="100%" filter="url(#grain-filter)"/>
     </svg>
 
-    <!-- Loading state -->
     <div id="centerMsg" class="center-msg">
       <span style="font-size:28px;opacity:0.2">◇</span>
       <span>loading field…</span>
     </div>
   </div>
 
-  <!-- Right detail panel -->
   <div id="detailPanel">
     <div class="dp-header">
-      <span class="dp-label">Now Showing</span>
+      <span class="dp-label">Inspecting</span>
       <span id="dpBy"></span>
     </div>
     <div id="dpTags"></div>
@@ -352,19 +269,21 @@
     <div id="dpFooter"></div>
     <div class="dp-empty" id="dpEmpty">
       <span class="dp-empty-icon">◌</span>
-      <span>loading the field…</span>
+      <span>click a whisper<br>to inspect it</span>
     </div>
   </div>
 </div>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
 <script src="/public/fingerprint.js"></script>
 <script>
 /* ── Dimensions ─────────────────────────────────────────────────────────── */
 const ACOUSTIC_DIMS = ['breathiness','darkness','softness','slowness','pitchLowness','pitchSteadiness'];
-const ACOUSTIC_LABELS = { breathiness:'breathiness', darkness:'darkness', softness:'softness',
-  slowness:'slowness', pitchLowness:'pitch low', pitchSteadiness:'pitch steady' };
+const ACOUSTIC_LABELS = {
+  breathiness:'breathiness', darkness:'darkness', softness:'softness',
+  slowness:'slowness', pitchLowness:'pitch low', pitchSteadiness:'pitch steady',
+};
 const SEMANTIC_DIMS = ['sensory','relational','taboo','tenderness','fantasy','identity','longing','unspeakable'];
-
 const DIM_COLORS = {
   breathiness:     '#FF2D8E',
   darkness:        '#9055D4',
@@ -373,23 +292,15 @@ const DIM_COLORS = {
   pitchLowness:    '#FF5070',
   pitchSteadiness: '#FFAE00',
 };
-const DIM_BLOOM = {
-  breathiness:     '#FF9EC2',
-  darkness:        '#C090E8',
-  slowness:        '#D8A0F0',
-  softness:        '#FFB880',
-  pitchLowness:    '#FF9090',
-  pitchSteadiness: '#FFD070',
-};
+const SEM_COLOR  = '#9055D4';
+const FLOOR_Y    = -2.2;
 
-const SEM_COLOR = '#9055D4';
-
-/* ── Feature extraction ─────────────────────────────────────────────────── */
+/* ── Feature helpers ─────────────────────────────────────────────────────── */
 function featureVec(w) {
   const c = w.sensuality?.components || {};
-  if (Object.keys(c).length === 0) return null;
+  if (!Object.keys(c).length) return null;
   const acoustic = ACOUSTIC_DIMS.map(k => c[k] != null ? c[k] : 0.5);
-  const sem = w.llm?.semantics || {};
+  const sem      = w.llm?.semantics || {};
   const semantic = SEMANTIC_DIMS.map(k => sem[k] != null ? Number(sem[k]) : 0.5);
   return [...acoustic, ...semantic];
 }
@@ -397,10 +308,7 @@ function featureVec(w) {
 function dominantDim(w) {
   const c = w.sensuality?.components || {};
   let best = 'breathiness', bestVal = -1;
-  for (const k of ACOUSTIC_DIMS) {
-    const v = c[k] ?? 0;
-    if (v > bestVal) { bestVal = v; best = k; }
-  }
+  for (const k of ACOUSTIC_DIMS) { const v = c[k] ?? 0; if (v > bestVal) { bestVal = v; best = k; } }
   return best;
 }
 
@@ -408,37 +316,40 @@ function topSemanticDim(w) {
   const sem = w.llm?.semantics;
   if (!sem) return null;
   let best = null, bestVal = -1;
-  for (const k of SEMANTIC_DIMS) {
-    const v = Number(sem[k]);
-    if (v > bestVal) { bestVal = v; best = k; }
-  }
+  for (const k of SEMANTIC_DIMS) { const v = Number(sem[k]); if (v > bestVal) { bestVal = v; best = k; } }
   return bestVal >= 0.4 ? best : null;
 }
 
-/* ── PCA ─────────────────────────────────────────────────────────────────── */
-function pca2d(data) {
+/* ── PCA 3D ──────────────────────────────────────────────────────────────── */
+function pca3d(data) {
   const n = data.length, d = data[0].length;
   const mean = new Array(d).fill(0);
   for (const v of data) v.forEach((x, i) => { mean[i] += x / n; });
   const C = data.map(v => v.map((x, i) => x - mean[i]));
   const cov = Array.from({length: d}, (_, i) =>
     Array.from({length: d}, (_, j) => C.reduce((s, v) => s + v[i] * v[j], 0) / n));
-  function mv(m, v) { return m.map(row => row.reduce((s, x, j) => s + x * v[j], 0)); }
+  function mv(m, v)  { return m.map(row => row.reduce((s, x, j) => s + x * v[j], 0)); }
   function dot(a, b) { return a.reduce((s, x, i) => s + x * b[i], 0); }
-  function norm(v) { const l = Math.sqrt(dot(v, v)); return v.map(x => x / (l || 1)); }
-  let v1 = norm(new Array(d).fill(0).map((_, i) => i === 0 ? 1 : 0.1));
-  for (let i = 0; i < 120; i++) v1 = norm(mv(cov, v1));
-  let v2 = norm(new Array(d).fill(0).map((_, i) => i === 1 ? 1 : 0.1));
+  function nrm(v)    { const l = Math.sqrt(dot(v, v)); return v.map(x => x / (l || 1)); }
+  let v1 = nrm(new Array(d).fill(0).map((_, i) => i === 0 ? 1 : 0.1));
+  for (let i = 0; i < 120; i++) v1 = nrm(mv(cov, v1));
+  let v2 = nrm(new Array(d).fill(0).map((_, i) => i === 1 ? 1 : 0.1));
   for (let i = 0; i < 120; i++) {
     let u = mv(cov, v2);
     u = u.map((x, k) => x - dot(u, v1) * v1[k]);
-    v2 = norm(u);
+    v2 = nrm(u);
   }
-  return C.map(v => [dot(v, v1), dot(v, v2)]);
+  let v3 = nrm(new Array(d).fill(0).map((_, i) => i === 2 ? 1 : 0.1));
+  for (let i = 0; i < 120; i++) {
+    let u = mv(cov, v3);
+    u = u.map((x, k) => x - dot(u, v1) * v1[k] - dot(u, v2) * v2[k]);
+    v3 = nrm(u);
+  }
+  return C.map(v => [dot(v, v1), dot(v, v2), dot(v, v3)]);
 }
 
-/* ── t-SNE ───────────────────────────────────────────────────────────────── */
-function tsneLayout(data, initPos) {
+/* ── t-SNE 3D ────────────────────────────────────────────────────────────── */
+function tsneLayout3d(data, initPos) {
   const n = data.length, d = data[0].length;
   const perp = Math.min(n - 1, Math.max(2, Math.floor(n / 4)));
   const hdist = Array.from({length: n}, (_, i) =>
@@ -456,78 +367,353 @@ function tsneLayout(data, initPos) {
   });
   const Psym = Array.from({length: n}, (_, i) =>
     Array.from({length: n}, (_, j) => (P[i][j] + P[j][i]) / (2 * n)));
-  let pos = initPos.map(([x, y]) => [x * 0.05, y * 0.05]);
-  let mom = Array.from({length: n}, () => [0, 0]);
+  let pos = initPos.map(([x, y, z]) => [x * 0.05, y * 0.05, z * 0.05]);
+  let mom = Array.from({length: n}, () => [0, 0, 0]);
   for (let iter = 0; iter < 350; iter++) {
-    const lr = 200 * Math.max(0.01, 1 - iter / 350);
+    const lr     = 200 * Math.max(0.01, 1 - iter / 350);
     const mScale = iter < 100 ? 0.5 : 0.8;
     const Q = Array.from({length: n}, (_, i) =>
       Array.from({length: n}, (_, j) => {
         if (i === j) return 0;
-        const dx = pos[i][0] - pos[j][0], dy = pos[i][1] - pos[j][1];
-        return 1 / (1 + dx * dx + dy * dy);
+        const dx = pos[i][0]-pos[j][0], dy = pos[i][1]-pos[j][1], dz = pos[i][2]-pos[j][2];
+        return 1 / (1 + dx*dx + dy*dy + dz*dz);
       }));
     const qsum = Q.reduce((s, row) => s + row.reduce((a, x) => a + x, 0), 0);
-    const grad = Array.from({length: n}, () => [0, 0]);
+    const grad = Array.from({length: n}, () => [0, 0, 0]);
     for (let i = 0; i < n; i++) {
       for (let j = 0; j < n; j++) {
         if (i === j) continue;
         const pij = Psym[i][j];
         const qij = Q[i][j] / (qsum + 1e-10);
         const f   = 4 * (pij - qij) * Q[i][j];
-        const dx  = pos[i][0] - pos[j][0], dy = pos[i][1] - pos[j][1];
-        const dist = Math.sqrt(dx * dx + dy * dy) + 1e-8;
+        const dx  = pos[i][0]-pos[j][0], dy = pos[i][1]-pos[j][1], dz = pos[i][2]-pos[j][2];
+        const dist = Math.sqrt(dx*dx + dy*dy + dz*dz) + 1e-8;
         grad[i][0] += f * dx / dist;
         grad[i][1] += f * dy / dist;
+        grad[i][2] += f * dz / dist;
       }
     }
     for (let i = 0; i < n; i++) {
       mom[i][0] = mScale * mom[i][0] + lr * grad[i][0];
       mom[i][1] = mScale * mom[i][1] + lr * grad[i][1];
+      mom[i][2] = mScale * mom[i][2] + lr * grad[i][2];
       pos[i][0] += mom[i][0];
       pos[i][1] += mom[i][1];
+      pos[i][2] += mom[i][2];
     }
   }
   return pos;
 }
 
-/* ── State ───────────────────────────────────────────────────────────────── */
-let points   = [];
-let hoverId  = null;
-let pinnedId      = null;
-let pinnedWhisper = null;
-let wsViewers = [];
-
-// Kiosk auto-cycle
-let cycleIndex = 0;
-let cycleTimer = null;
-const CYCLE_MS = 6000;
-let pad = 52;
-let whisperMap = new Map(); // id → last-known whisper, used for delta polling
-
-// Hover fingerprint (overlay canvas, same lifecycle as mobile)
-let _umapFpRenderer = null;
-let _fpCfg = {};
-const FP_SIZE = 360; // logical px — same visual scale as mobile
-
-const canvas  = document.getElementById('fieldCanvas');
-
-/* ── toScreen / fromScreen ───────────────────────────────────────────────── */
-let toScreen = null, xLo = 0, xHi = 1, yLo = 0, yHi = 1;
-
-function buildToScreen(W, H) {
-  const xs = points.map(p => p.x), ys = points.map(p => p.y);
-  xLo = Math.min(...xs); const xHi_ = Math.max(...xs);
-  yLo = Math.min(...ys); const yHi_ = Math.max(...ys);
-  const xRange = xHi_ - xLo || 1, yRange = yHi_ - yLo || 1;
-  xHi = xHi_; yHi = yHi_;
-  toScreen = (px, py) => [
-    pad + (px - xLo) / xRange * (W - pad * 2),
-    pad + (py - yLo) / yRange * (H - pad * 2),
-  ];
+/* ── Scale raw layout positions to scene units ───────────────────────────── */
+function normPositions(raw) {
+  let xlo=Infinity,xhi=-Infinity,ylo=Infinity,yhi=-Infinity,zlo=Infinity,zhi=-Infinity;
+  for (const [x,y,z] of raw) {
+    if(x<xlo)xlo=x; if(x>xhi)xhi=x;
+    if(y<ylo)ylo=y; if(y>yhi)yhi=y;
+    if(z<zlo)zlo=z; if(z>zhi)zhi=z;
+  }
+  const rx=xhi-xlo||1, ry=yhi-ylo||1, rz=zhi-zlo||1;
+  return raw.map(([x,y,z]) => [
+    ((x-xlo)/rx - 0.5) * 7.0,
+    ((y-ylo)/ry - 0.5) * 1.4,
+    ((z-zlo)/rz - 0.5) * 7.0,
+  ]);
 }
 
-/* ── Hover fingerprint (transparent overlay, mobile-identical lifecycle) ─── */
+/* ── App state ───────────────────────────────────────────────────────────── */
+let points      = [];
+let pinnedId    = null;
+let pinnedWhisper = null;
+let wsViewers   = [];
+let whisperMap  = new Map();
+let _umapFpRenderer = null;
+let _fpCfg = {};
+const FP_SIZE = 340;
+
+/* ── Three.js state ──────────────────────────────────────────────────────── */
+let scene, camera, renderer, raycaster;
+let orbGroup   = null;
+let orbMeshes  = [];    // { mesh, glowMesh, stalk, point }
+let pinnedRing = null;
+let hoveredMesh = null;
+let autoRotate = false;
+
+// Spherical camera
+const sph = { theta: 0.65, phi: 1.05, radius: 8.5 };
+
+// Drag state
+let isDragging  = false;
+let dragStart   = null;
+let dragSphStart = null;
+const DRAG_THRESHOLD = 4;
+
+// Mouse in normalised device coords (for raycaster)
+const mouseNorm = new THREE.Vector2(9999, 9999);
+
+/* ── Three.js init ───────────────────────────────────────────────────────── */
+function initScene() {
+  const container = document.getElementById('canvasContainer');
+  const W = container.clientWidth, H = container.clientHeight;
+
+  scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x0a0608);
+  scene.fog = new THREE.FogExp2(0x0a0608, 0.048);
+
+  camera = new THREE.PerspectiveCamera(55, W / H, 0.1, 100);
+  updateCamera();
+
+  renderer = new THREE.WebGLRenderer({ antialias: true });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  renderer.setSize(W, H);
+  container.appendChild(renderer.domElement);
+
+  raycaster = new THREE.Raycaster();
+
+  scene.add(new THREE.AmbientLight(0xffffff, 0.5));
+  const dir = new THREE.DirectionalLight(0xffffff, 0.3);
+  dir.position.set(3, 5, 3);
+  scene.add(dir);
+
+  buildFloorGrid();
+  orbGroup = new THREE.Group();
+  scene.add(orbGroup);
+
+  bindControls(container);
+  animate();
+}
+
+function updateCamera() {
+  const { theta, phi, radius } = sph;
+  camera.position.set(
+    radius * Math.sin(phi) * Math.sin(theta),
+    radius * Math.cos(phi),
+    radius * Math.sin(phi) * Math.cos(theta)
+  );
+  camera.lookAt(0, 0, 0);
+}
+
+/* ── Floor grid ──────────────────────────────────────────────────────────── */
+function buildFloorGrid() {
+  const mat  = new THREE.LineBasicMaterial({ color: 0x9055d4, transparent: true, opacity: 0.13 });
+  const SIZE = 5;
+  for (let i = -SIZE; i <= SIZE; i++) {
+    scene.add(new THREE.Line(
+      new THREE.BufferGeometry().setFromPoints([
+        new THREE.Vector3(i, FLOOR_Y, -SIZE),
+        new THREE.Vector3(i, FLOOR_Y,  SIZE),
+      ]), mat));
+    scene.add(new THREE.Line(
+      new THREE.BufferGeometry().setFromPoints([
+        new THREE.Vector3(-SIZE, FLOOR_Y, i),
+        new THREE.Vector3( SIZE, FLOOR_Y, i),
+      ]), mat));
+  }
+}
+
+/* ── Build orb meshes ────────────────────────────────────────────────────── */
+function buildOrbs() {
+  while (orbGroup.children.length) orbGroup.remove(orbGroup.children[0]);
+  orbMeshes = [];
+
+  for (const p of points) {
+    const hex = parseInt(p.color.replace('#',''), 16);
+    const r   = p.r * 0.022;
+
+    // Core orb
+    const mesh = new THREE.Mesh(
+      new THREE.SphereGeometry(r, 14, 10),
+      new THREE.MeshBasicMaterial({ color: hex })
+    );
+    mesh.position.set(p.x3d, p.y3d, p.z3d);
+    mesh.userData.point = p;
+    orbGroup.add(mesh);
+
+    // Glow halo
+    const glowMesh = new THREE.Mesh(
+      new THREE.SphereGeometry(r * 2.8, 10, 8),
+      new THREE.MeshBasicMaterial({ color: hex, transparent: true, opacity: 0.13 })
+    );
+    glowMesh.position.copy(mesh.position);
+    orbGroup.add(glowMesh);
+
+    // Stalk to floor
+    const stalk = new THREE.Line(
+      new THREE.BufferGeometry().setFromPoints([
+        new THREE.Vector3(p.x3d, p.y3d, p.z3d),
+        new THREE.Vector3(p.x3d, FLOOR_Y, p.z3d),
+      ]),
+      new THREE.LineBasicMaterial({ color: hex, transparent: true, opacity: 0.22 })
+    );
+    orbGroup.add(stalk);
+
+    orbMeshes.push({ mesh, glowMesh, stalk, point: p });
+  }
+}
+
+/* ── Render loop ─────────────────────────────────────────────────────────── */
+function animate() {
+  requestAnimationFrame(animate);
+
+  if (autoRotate) {
+    sph.theta += 0.0025;
+    updateCamera();
+  }
+
+  // Reset scales
+  for (const { mesh, glowMesh } of orbMeshes) {
+    mesh.scale.setScalar(1);
+    glowMesh.scale.setScalar(1);
+    glowMesh.material.opacity = 0.13;
+  }
+
+  // Hover detection
+  if (!isDragging) {
+    raycaster.setFromCamera(mouseNorm, camera);
+    const hits = raycaster.intersectObjects(orbMeshes.map(o => o.mesh));
+    const hit  = hits.length ? hits[0].object : null;
+
+    if (hit !== hoveredMesh) {
+      if (hoveredMesh && hoveredMesh.userData.point?.w.id !== pinnedId) {
+        closeHoverFingerprint();
+      }
+      hoveredMesh = hit;
+      if (hoveredMesh) {
+        const p  = hoveredMesh.userData.point;
+        const sp = projectToScreen(p.x3d, p.y3d, p.z3d);
+        openHoverFingerprint(p.w, sp.x, sp.y);
+      }
+    }
+
+    if (hoveredMesh) {
+      const entry = orbMeshes.find(o => o.mesh === hoveredMesh);
+      if (entry) {
+        hoveredMesh.scale.setScalar(1.5);
+        entry.glowMesh.scale.setScalar(1.4);
+        entry.glowMesh.material.opacity = 0.28;
+      }
+    }
+  }
+
+  renderer.render(scene, camera);
+}
+
+/* ── Screen projection ───────────────────────────────────────────────────── */
+function projectToScreen(x3d, y3d, z3d) {
+  const v    = new THREE.Vector3(x3d, y3d, z3d).project(camera);
+  const rect = renderer.domElement.getBoundingClientRect();
+  return {
+    x: (v.x * 0.5 + 0.5) * rect.width,
+    y: (-v.y * 0.5 + 0.5) * rect.height,
+  };
+}
+
+/* ── Pinned wireframe ring ───────────────────────────────────────────────── */
+function setPinnedRing(point) {
+  if (pinnedRing) { orbGroup.remove(pinnedRing); pinnedRing = null; }
+  if (!point) return;
+  const r   = point.r * 0.022;
+  const hex = parseInt(point.color.replace('#',''), 16);
+  pinnedRing = new THREE.Mesh(
+    new THREE.SphereGeometry(r * 2.2, 14, 10),
+    new THREE.MeshBasicMaterial({ color: hex, wireframe: true, transparent: true, opacity: 0.40 })
+  );
+  pinnedRing.position.set(point.x3d, point.y3d, point.z3d);
+  orbGroup.add(pinnedRing);
+}
+
+/* ── Click → select ─────────────────────────────────────────────────────── */
+function selectOrb(mesh) {
+  if (!mesh) return;
+  const p = mesh.userData.point;
+  pinnedId      = p.w.id;
+  pinnedWhisper = p.w;
+  setPinnedRing(p);
+  renderDetailPanel(p.w, p);
+  const sp = projectToScreen(p.x3d, p.y3d, p.z3d);
+  openHoverFingerprint(p.w, sp.x, sp.y);
+}
+
+/* ── Input controls ──────────────────────────────────────────────────────── */
+function bindControls(container) {
+  const el = renderer.domElement;
+
+  // Persistent mouse-move: update normalised coords for raycaster
+  el.addEventListener('mousemove', e => {
+    const rect = el.getBoundingClientRect();
+    mouseNorm.x = ((e.clientX - rect.left) / rect.width)  *  2 - 1;
+    mouseNorm.y = ((e.clientY - rect.top)  / rect.height) * -2 + 1;
+    if (isDragging && dragStart) onDragMove(e);
+  });
+
+  el.addEventListener('mousedown', e => {
+    isDragging   = false;
+    dragStart    = { x: e.clientX, y: e.clientY };
+    dragSphStart = { theta: sph.theta, phi: sph.phi };
+  });
+
+  el.addEventListener('mouseup', e => {
+    const wasD = isDragging;
+    isDragging = false;
+    dragStart  = null;
+    if (!wasD) {
+      raycaster.setFromCamera(mouseNorm, camera);
+      const hits = raycaster.intersectObjects(orbMeshes.map(o => o.mesh));
+      if (hits.length) selectOrb(hits[0].object);
+    }
+  });
+
+  el.addEventListener('mouseleave', () => {
+    isDragging = false; dragStart = null;
+    mouseNorm.set(9999, 9999);
+  });
+
+  el.addEventListener('wheel', e => {
+    sph.radius = Math.max(2.5, Math.min(18, sph.radius + e.deltaY * 0.012));
+    updateCamera();
+  }, { passive: true });
+
+  // Touch orbit
+  let lastTouch = null;
+  el.addEventListener('touchstart', e => {
+    if (e.touches.length === 1) lastTouch = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+  }, { passive: true });
+  el.addEventListener('touchmove', e => {
+    if (e.touches.length !== 1 || !lastTouch) return;
+    const dx = e.touches[0].clientX - lastTouch.x;
+    const dy = e.touches[0].clientY - lastTouch.y;
+    sph.theta -= dx * 0.005;
+    sph.phi    = Math.max(0.15, Math.min(Math.PI - 0.15, sph.phi + dy * 0.005));
+    updateCamera();
+    lastTouch = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+  }, { passive: true });
+
+  // Auto-rotate button
+  document.getElementById('autoRotateBtn').addEventListener('click', () => {
+    autoRotate = !autoRotate;
+    document.getElementById('autoRotateBtn').classList.toggle('active', autoRotate);
+  });
+
+  window.addEventListener('resize', () => {
+    const W = container.clientWidth, H = container.clientHeight;
+    camera.aspect = W / H;
+    camera.updateProjectionMatrix();
+    renderer.setSize(W, H);
+  });
+}
+
+function onDragMove(e) {
+  if (!dragStart) return;
+  const dx = e.clientX - dragStart.x, dy = e.clientY - dragStart.y;
+  if (!isDragging && Math.sqrt(dx*dx + dy*dy) > DRAG_THRESHOLD) isDragging = true;
+  if (isDragging) {
+    sph.theta = dragSphStart.theta - dx * 0.005;
+    sph.phi   = Math.max(0.15, Math.min(Math.PI - 0.15, dragSphStart.phi + dy * 0.005));
+    updateCamera();
+  }
+}
+
+/* ── Fingerprint overlay ─────────────────────────────────────────────────── */
 function openHoverFingerprint(w, sx, sy) {
   const oc  = document.getElementById('umapFpCanvas');
   const dpr = Math.min(window.devicePixelRatio || 1, 2);
@@ -546,8 +732,8 @@ function openHoverFingerprint(w, sx, sy) {
   const code  = w.wspr || w.id?.slice(-4).toUpperCase() || '????';
   const label = document.getElementById('umapFpLabel');
   label.textContent = 'WSPR · ' + code;
-  label.style.left = sx + 'px';
-  label.style.top  = (sy - FP_SIZE / 2 - 26) + 'px';
+  label.style.left  = sx + 'px';
+  label.style.top   = (sy - FP_SIZE / 2 - 26) + 'px';
   label.classList.add('visible');
 }
 
@@ -555,149 +741,17 @@ function closeHoverFingerprint() {
   document.getElementById('umapFpLabel').classList.remove('visible');
   if (_umapFpRenderer) {
     const oc = document.getElementById('umapFpCanvas');
-    _umapFpRenderer.shrink(() => {
-      oc.hidden = true;
-      _umapFpRenderer = null;
-    });
+    _umapFpRenderer.shrink(() => { oc.hidden = true; _umapFpRenderer = null; });
   }
 }
-
-/* ── Canvas draw ─────────────────────────────────────────────────────────── */
-function draw() {
-  if (!points.length || !toScreen) return;
-  const dpr = window.devicePixelRatio || 1;
-  const W   = canvas.clientWidth;
-  const H   = canvas.clientHeight;
-  canvas.width  = W * dpr;
-  canvas.height = H * dpr;
-  const ctx = canvas.getContext('2d');
-  ctx.scale(dpr, dpr);
-
-  // Background
-  const bg = ctx.createRadialGradient(W * 0.5, 0, 0, W * 0.5, 0, Math.max(W, H) * 1.2);
-  bg.addColorStop(0, '#EFEDE9');
-  bg.addColorStop(1, '#DCD7CF');
-  ctx.fillStyle = bg;
-  ctx.fillRect(0, 0, W, H);
-
-  // Bloom layer — radial gradient per cluster centroid
-  ctx.save();
-  ctx.globalCompositeOperation = 'multiply';
-  for (const [dim, color] of Object.entries(DIM_BLOOM)) {
-    const cluster = points.filter(p => p.dim === dim);
-    if (!cluster.length) continue;
-    const cx = cluster.reduce((s, p) => s + p.sx, 0) / cluster.length;
-    const cy = cluster.reduce((s, p) => s + p.sy, 0) / cluster.length;
-    const spread = Math.max(60, Math.sqrt(cluster.length) * 14);
-    const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, spread);
-    g.addColorStop(0,   color + '70');
-    g.addColorStop(0.5, color + '44');
-    g.addColorStop(1,   'transparent');
-    ctx.fillStyle = g;
-    ctx.beginPath();
-    ctx.arc(cx, cy, spread, 0, Math.PI * 2);
-    ctx.fill();
-    // Scattered smaller blooms
-    for (const p of cluster.slice(0, 14)) {
-      const sg = ctx.createRadialGradient(p.sx, p.sy, 0, p.sx, p.sy, 22);
-      sg.addColorStop(0,   color + '50');
-      sg.addColorStop(1,   'transparent');
-      ctx.fillStyle = sg;
-      ctx.beginPath();
-      ctx.arc(p.sx, p.sy, 22, 0, Math.PI * 2);
-      ctx.fill();
-    }
-  }
-  ctx.restore();
-
-  // Dots
-  for (const p of points) {
-    const isPinned = p.w.id === pinnedId;
-    const isHov    = p.w.id === hoverId;
-    const r = isHov || isPinned ? p.r + 2 : p.r;
-
-    if (isHov || isPinned) {
-      const g = ctx.createRadialGradient(p.sx, p.sy, 0, p.sx, p.sy, r * 3.5);
-      g.addColorStop(0, p.color + '60');
-      g.addColorStop(1, 'transparent');
-      ctx.fillStyle = g;
-      ctx.beginPath();
-      ctx.arc(p.sx, p.sy, r * 3.5, 0, Math.PI * 2);
-      ctx.fill();
-    }
-
-    ctx.beginPath();
-    ctx.arc(p.sx, p.sy, r, 0, Math.PI * 2);
-    ctx.fillStyle = isHov ? '#fff' : p.color;
-    ctx.globalAlpha = isHov ? 1 : p.opacity;
-    ctx.fill();
-    ctx.globalAlpha = 1;
-
-    if (isPinned) {
-      ctx.strokeStyle = '#fff';
-      ctx.lineWidth = 1.1;
-      ctx.beginPath();
-      ctx.arc(p.sx, p.sy, r + 3, 0, Math.PI * 2);
-      ctx.stroke();
-      ctx.strokeStyle = p.color + 'aa';
-      ctx.lineWidth = 1;
-      ctx.setLineDash([3, 3]);
-      ctx.beginPath();
-      ctx.arc(p.sx, p.sy, r + 8, 0, Math.PI * 2);
-      ctx.stroke();
-      ctx.setLineDash([]);
-    }
-  }
-
-  // Frame corners
-  const x0 = pad - 6, y0 = pad - 6, x1 = W - pad + 6, y1 = H - pad + 6;
-  const arm = 12;
-  ctx.strokeStyle = 'rgba(20,16,24,0.28)';
-  ctx.lineWidth = 0.8;
-  ctx.beginPath();
-  ctx.moveTo(x0 + arm, y0); ctx.lineTo(x0, y0); ctx.lineTo(x0, y0 + arm);
-  ctx.moveTo(x1 - arm, y0); ctx.lineTo(x1, y0); ctx.lineTo(x1, y0 + arm);
-  ctx.moveTo(x0 + arm, y1); ctx.lineTo(x0, y1); ctx.lineTo(x0, y1 - arm);
-  ctx.moveTo(x1 - arm, y1); ctx.lineTo(x1, y1); ctx.lineTo(x1, y1 - arm);
-  ctx.stroke();
-}
-
-/* ── Kiosk auto-cycle ────────────────────────────────────────────────────── */
-function focusEntry(i) {
-  if (!points.length) return;
-  cycleIndex = ((i % points.length) + points.length) % points.length;
-  const p = points[cycleIndex];
-  pinnedId      = p.w.id;
-  pinnedWhisper = p.w;
-  renderDetailPanel(p.w);
-  openHoverFingerprint(p.w, p.sx, p.sy);
-  draw();
-}
-
-function startCycle() {
-  if (cycleTimer) { clearInterval(cycleTimer); cycleTimer = null; }
-  if (!points.length) return;
-  if (cycleIndex >= points.length) cycleIndex = 0;
-  focusEntry(cycleIndex);
-  cycleTimer = setInterval(() => focusEntry(cycleIndex + 1), CYCLE_MS);
-}
-
-window.addEventListener('resize', () => {
-  if (points.length) {
-    const W = canvas.clientWidth, H = canvas.clientHeight;
-    buildToScreen(W, H);
-    points.forEach(p => { [p.sx, p.sy] = toScreen(p.x, p.y); });
-  }
-  draw();
-});
 
 /* ── Detail panel ────────────────────────────────────────────────────────── */
-function renderDetailPanel(w) {
+function renderDetailPanel(w, p) {
   document.getElementById('dpEmpty').style.display = 'none';
 
   const showSemantics = !!_fpCfg.showSemanticLabels;
-  const dim  = dominantDim(w);
-  const sem  = showSemantics ? topSemanticDim(w) : null;
+  const dim   = dominantDim(w);
+  const sem   = showSemantics ? topSemanticDim(w) : null;
   const color = DIM_COLORS[dim] || '#9055D4';
 
   // Tags
@@ -717,81 +771,62 @@ function renderDetailPanel(w) {
     tagsEl.appendChild(t);
   }
   const code = w.wspr || w.id?.slice(-4).toUpperCase() || '????';
-  const codeTag = document.createElement('span');
-  codeTag.className = 'dp-tag dp-tag--secondary';
-  codeTag.style.letterSpacing = '0.08em';
-  codeTag.textContent = 'WSPR · ' + code;
-  tagsEl.appendChild(codeTag);
+  const ct = document.createElement('span');
+  ct.className = 'dp-tag dp-tag--secondary';
+  ct.style.letterSpacing = '0.08em';
+  ct.textContent = 'WSPR · ' + code;
+  tagsEl.appendChild(ct);
 
   // Quote
-  const rephrased = w.llm?.rephrased?.trim();
-  const original  = w.transcript?.trim();
-  const display   = rephrased || original || 'wordless whisper';
-  document.getElementById('dpQuote').textContent = '“' + display + '”';
+  const display = w.llm?.rephrased?.trim() || w.transcript?.trim() || 'wordless whisper';
+  document.getElementById('dpQuote').textContent = '"' + display + '"';
 
   // SI score
   const score = w.sensuality?.score;
-  if (score != null) {
-    document.getElementById('dpSIScore').textContent = Math.round(score * 100);
-    document.getElementById('dpSIPct').textContent   = '%';
-  } else {
-    document.getElementById('dpSIScore').textContent = '—';
-    document.getElementById('dpSIPct').textContent   = '';
-  }
+  document.getElementById('dpSIScore').textContent = score != null ? Math.round(score * 100) : '—';
+  document.getElementById('dpSIPct').textContent   = score != null ? '%' : '';
 
-  // Position counter
-  document.getElementById('dpBy').textContent =
-    points.length ? `${cycleIndex + 1} / ${points.length}` : '';
+  // Index counter
+  const idx = points.findIndex(pt => pt.w.id === w.id);
+  document.getElementById('dpBy').textContent = idx >= 0 ? `${idx + 1} / ${points.length}` : '';
 
   // Acoustic bars
-  const comps  = w.sensuality?.components || {};
-  const aEl    = document.getElementById('dpAcousticBars');
-  aEl.innerHTML = ACOUSTIC_DIMS.map(k => {
-    const v    = comps[k];
-    const pct  = v != null ? Math.round(v * 100) : 0;
-    const barColor = DIM_COLORS[k] || '#9055D4';
+  const comps = w.sensuality?.components || {};
+  document.getElementById('dpAcousticBars').innerHTML = ACOUSTIC_DIMS.map(k => {
+    const v = comps[k], pct = v != null ? Math.round(v * 100) : 0;
     return `<div class="dp-bar-row">
       <span class="dp-bar-label">${ACOUSTIC_LABELS[k]}</span>
-      <div class="dp-bar-track">
-        <div class="dp-bar-fill" style="width:${pct}%;background:${barColor}"></div>
-      </div>
+      <div class="dp-bar-track"><div class="dp-bar-fill" style="width:${pct}%;background:${DIM_COLORS[k]||SEM_COLOR}"></div></div>
       <span class="dp-bar-val">${v != null ? v.toFixed(2) : '—'}</span>
     </div>`;
   }).join('');
 
-  // Semantic bars — gated on the admin "semantic labels" toggle
+  // Semantic bars
   document.getElementById('dpSemanticSection').style.display = showSemantics ? '' : 'none';
-  const sem2 = w.llm?.semantics || {};
-  const sEl  = document.getElementById('dpSemanticBars');
-  sEl.innerHTML = SEMANTIC_DIMS.map(k => {
-    const v   = sem2[k];
-    const pct = v != null ? Math.round(Number(v) * 100) : 0;
+  const semData = w.llm?.semantics || {};
+  document.getElementById('dpSemanticBars').innerHTML = SEMANTIC_DIMS.map(k => {
+    const v = semData[k], pct = v != null ? Math.round(Number(v) * 100) : 0;
     return `<div class="dp-bar-row">
       <span class="dp-bar-label">${k}</span>
-      <div class="dp-bar-track">
-        <div class="dp-bar-fill" style="width:${pct}%;background:${SEM_COLOR}"></div>
-      </div>
+      <div class="dp-bar-track"><div class="dp-bar-fill" style="width:${pct}%;background:${SEM_COLOR}"></div></div>
       <span class="dp-bar-val">${v != null ? Number(v).toFixed(2) : '—'}</span>
     </div>`;
   }).join('');
 
   // Footer
-  const hasPraat = w.features?.hnr != null;
-  const hasSem   = showSemantics && !!w.llm?.semantics;
-  const parts    = ['acoustic'];
-  if (hasPraat) parts.push('Praat/librosa');
-  if (hasSem)   parts.push('semantic · dolphin-mistral');
+  const parts = ['acoustic'];
+  if (w.features?.hnr != null) parts.push('Praat/librosa');
+  if (showSemantics && w.llm?.semantics) parts.push('semantic · dolphin-mistral');
   document.getElementById('dpFooter').textContent = parts.join(' · ');
 }
 
 /* ── Header viewer dots ──────────────────────────────────────────────────── */
 function updateHeaderViewers() {
-  const el = document.getElementById('atlasViewers');
-  // Always show "you" dot
-  const dots = [{ name: 'you', color: '#141018' }, ...wsViewers];
+  const el = document.getElementById('viewerDots');
+  const dots = [{ name: 'you', color: '#9055D4' }, ...wsViewers];
   el.innerHTML = dots.map(v => `
     <div class="viewer-dot-wrap">
-      <div class="viewer-dot" style="background:${v.color};box-shadow:0 0 0 2px #EFEDE9,0 0 0 3.5px ${v.color}88"></div>
+      <div class="viewer-dot" style="background:${v.color};box-shadow:0 0 0 2px #0a0608,0 0 0 3.5px ${v.color}88"></div>
       <span>${v.name}</span>
     </div>`).join('');
 }
@@ -803,15 +838,11 @@ function connectWS() {
   ws.onmessage = ({ data }) => {
     try {
       const msg = JSON.parse(data);
-      if (msg.type === 'viewers') {
-        wsViewers = msg.viewers || [];
-        updateHeaderViewers();
-        draw();
-      }
+      if (msg.type === 'viewers') { wsViewers = msg.viewers || []; updateHeaderViewers(); }
     } catch {}
   };
-  ws.onclose  = () => setTimeout(connectWS, 3000);
-  ws.onerror  = () => {};
+  ws.onclose = () => setTimeout(connectWS, 3000);
+  ws.onerror = () => {};
 }
 
 /* ── Load + layout ───────────────────────────────────────────────────────── */
@@ -827,17 +858,14 @@ async function load({ silent = false } = {}) {
   let whispers;
   try {
     const res = await fetch('/whispers');
-    const d   = await res.json();
-    whispers  = d.whispers || [];
+    whispers  = (await res.json()).whispers || [];
   } catch {
     document.getElementById('centerMsg').querySelector('span:last-child').textContent = 'could not reach server';
     return;
   }
 
   const valid = whispers.filter(w => featureVec(w) !== null);
-
-  document.getElementById('atlasSubtitle').textContent =
-    `UMAP · ${valid.length} whispers`;
+  document.getElementById('atlasSubtitle').textContent = `3D · ${valid.length} whispers`;
 
   if (valid.length < 2) {
     document.getElementById('centerMsg').querySelector('span:last-child').textContent =
@@ -845,61 +873,50 @@ async function load({ silent = false } = {}) {
     return;
   }
 
-  const vecs   = valid.map(w => featureVec(w));
-  const initXY = pca2d(vecs);
-  let finalXY, algo;
+  const vecs    = valid.map(w => featureVec(w));
+  const initXYZ = pca3d(vecs);
+  let finalXYZ, algo;
+  if (valid.length < 8) { finalXYZ = initXYZ; algo = 'pca'; }
+  else                  { finalXYZ = tsneLayout3d(vecs, initXYZ); algo = 't-sne'; }
 
-  if (valid.length < 8) {
-    finalXY = initXY; algo = 'pca';
-  } else {
-    finalXY = tsneLayout(vecs, initXY); algo = 't-sne';
-  }
-
-  const W = canvas.clientWidth, H = canvas.clientHeight;
+  const scaled = normPositions(finalXYZ);
 
   points = valid.map((w, i) => ({
     w,
-    x:       finalXY[i][0],
-    y:       finalXY[i][1],
-    dim:     dominantDim(w),
-    color:   DIM_COLORS[dominantDim(w)] || '#9055D4',
-    opacity: 0.62 + Math.random() * 0.32,
-    r:       Math.max(4, Math.min(7, 4 + (w.features?.durationLibrosa ?? w.features?.duration ?? 3) * 0.25)),
+    x3d:  scaled[i][0],
+    y3d:  scaled[i][1],
+    z3d:  scaled[i][2],
+    dim:  dominantDim(w),
+    color: DIM_COLORS[dominantDim(w)] || '#9055D4',
+    r:    Math.max(4, Math.min(7, 4 + (w.features?.durationLibrosa ?? w.features?.duration ?? 3) * 0.25)),
   }));
-
-  buildToScreen(W, H);
-  points.forEach(p => { [p.sx, p.sy] = toScreen(p.x, p.y); });
 
   const hasSemantic = valid.some(w => w.llm?.semantics);
   document.getElementById('atlasSubtitle').textContent =
-    `UMAP · ${valid.length} whispers · ${algo}${hasSemantic ? ' · semantic' : ''}`;
+    `3D · ${valid.length} whispers · ${algo}${hasSemantic ? ' · semantic' : ''}`;
+
+  buildOrbs();
+
+  // Restore pinned ring after rebuild
+  if (pinnedId) {
+    const pt = points.find(p => p.w.id === pinnedId);
+    if (pt) setPinnedRing(pt);
+  }
 
   document.getElementById('centerMsg').style.display = 'none';
   whisperMap = new Map(valid.map(w => [w.id, w]));
-  updateHeaderViewers();
-  draw();
-  startCycle();
 }
 
-/* ── Background polling for LLM updates ─────────────────────────────────── */
+/* ── Background polling ──────────────────────────────────────────────────── */
 async function pollWhispers() {
-  if (!whisperMap.size) return; // still on initial load
+  if (!whisperMap.size) return;
   let fresh;
-  try {
-    const res = await fetch('/whispers');
-    const d   = await res.json();
-    fresh = d.whispers || [];
-  } catch { return; }
+  try { fresh = (await (await fetch('/whispers')).json()).whispers || []; }
+  catch { return; }
+
+  if (fresh.some(w => !whisperMap.has(w.id))) { await load({ silent: true }); return; }
 
   const freshMap = new Map(fresh.map(w => [w.id, w]));
-
-  // New entries arrived → full re-layout (silent, no loading spinner)
-  if (fresh.some(w => !whisperMap.has(w.id))) {
-    await load({ silent: true });
-    return;
-  }
-
-  // Existing entries only — patch in-place when LLM data arrives
   let anyUpdated = false;
   for (const [id, freshW] of freshMap) {
     const oldW = whisperMap.get(id);
@@ -907,26 +924,21 @@ async function pollWhispers() {
     const llmArrived   = !oldW.llm && !!freshW.llm;
     const praatArrived = oldW.sensuality?.partial && !freshW.sensuality?.partial;
     if (!llmArrived && !praatArrived) continue;
-
     const pt = points.find(p => p.w.id === id);
     if (pt) Object.assign(pt.w, freshW);
     whisperMap.set(id, freshW);
     anyUpdated = true;
   }
-
-  if (!anyUpdated) return;
-
-  // Re-render detail panel if the pinned entry was among the updated ones
-  if (pinnedId) {
+  if (anyUpdated && pinnedId) {
     const pt = points.find(p => p.w.id === pinnedId);
-    if (pt) renderDetailPanel(pt.w);
+    if (pt) renderDetailPanel(pt.w, pt);
   }
-  draw();
 }
 
 /* ── Boot ────────────────────────────────────────────────────────────────── */
 updateHeaderViewers();
 connectWS();
+initScene();
 load();
 setInterval(pollWhispers, 8000);
 </script>

@@ -453,11 +453,6 @@ class FingerprintRenderer {
     }
     for (const d of this._accentDots) this._drawBlob(ctx, d, elapsed, formEase, settleEase, breatheAmt, shrinkMs);
     for (const d of this._solidDots)  this._drawSolidDot(ctx, d, elapsed, formEase, settleEase, breatheAmt, shrinkMs);
-    if (this._cfg.showSemanticLabels) {
-      for (const b of this._blobs)         this._drawSemanticLabel(ctx, b, elapsed, settleEase, shrinkMs);
-      for (const b of this._semanticBlobs) this._drawSemanticLabel(ctx, b, elapsed, settleEase, shrinkMs);
-      for (const d of this._solidDots)     this._drawSemanticLabel(ctx, d, elapsed, settleEase, shrinkMs);
-    }
     for (const part of this._particles) {
       if (elapsed < part.delay) continue;
       const pAlpha = Math.min(1, (elapsed - part.delay) / 1.0) * formEase;
@@ -465,6 +460,11 @@ class FingerprintRenderer {
     }
     if (this._cfg.blendMode !== 'multiply') {
       for (const b of this._blobs) this._drawSpecular(ctx, b, elapsed, formEase, settleEase, shrinkMs);
+    }
+    if (this._cfg.showSemanticLabels) {
+      for (const b of this._blobs)         this._drawSemanticLabel(ctx, b, elapsed, settleEase, shrinkMs);
+      for (const b of this._semanticBlobs) this._drawSemanticLabel(ctx, b, elapsed, settleEase, shrinkMs);
+      for (const d of this._solidDots)     this._drawSemanticLabel(ctx, d, elapsed, settleEase, shrinkMs);
     }
 
     ctx.restore();
@@ -487,7 +487,7 @@ class FingerprintRenderer {
       : blob._tag;
     ctx.save();
     ctx.globalCompositeOperation = 'source-over';
-    ctx.globalAlpha = settleEase * sf * 0.72;
+    ctx.globalAlpha = settleEase * sf * 0.90;
     ctx.font = `500 ${fontSize}px 'IBM Plex Mono','SF Mono',ui-monospace,monospace`;
     ctx.letterSpacing = '0.05em';
     ctx.fillStyle = this._cfg.semanticLabelColor;

@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>whisper field — detail</title>
+<title>database of desires — detail</title>
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   html, body { width: 100%; height: 100%; overflow: hidden; }
@@ -222,6 +222,55 @@
     flex-shrink: 0;
   }
 
+  /* ── Quote below canvas ───── */
+  #overlay-quote {
+    max-width: min(80vw, 78vh);
+    width: 100%;
+    text-align: center;
+    margin-top: 20px;
+    font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    font-style: italic;
+    font-size: clamp(15px, 2.2vw, 26px);
+    line-height: 1.35;
+    color: rgba(255,255,255,0.80);
+    padding: 0 8px;
+  }
+
+  /* ── Side variable strips ───── */
+  #overlay-left, #overlay-right {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 150px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  #overlay-left  { left: 24px; }
+  #overlay-right { right: 24px; }
+
+  .ov-bar-row { display: flex; align-items: center; gap: 6px; }
+  .ov-bar-name {
+    font-family: 'IBM Plex Mono', 'SF Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 0.06em;
+    color: rgba(255,255,255,0.35);
+    white-space: nowrap;
+    min-width: 70px;
+  }
+  #overlay-right .ov-bar-name { text-align: right; }
+  .ov-bar-track { flex: 1; height: 2px; background: rgba(255,255,255,0.08); border-radius: 1px; }
+  .ov-bar-fill  { height: 2px; background: rgba(255,255,255,0.38); border-radius: 1px; }
+  .ov-bar-val {
+    font-family: 'IBM Plex Mono', 'SF Mono', monospace;
+    font-size: 9px;
+    color: rgba(255,255,255,0.25);
+    width: 24px;
+    flex-shrink: 0;
+  }
+  #overlay-left  .ov-bar-val { text-align: right; }
+  #overlay-right .ov-bar-val { text-align: left; }
+
   /* ── bottom strip ───── */
   #overlay-foot {
     position: absolute;
@@ -230,47 +279,7 @@
     right: 24px;
     display: flex;
     align-items: center;
-    gap: 24px;
-  }
-
-  /* ── Overlay: footer elements ───── */
-  .ov-rephrased {
-    font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
-    font-style: italic;
-    font-size: 13px;
-    line-height: 1.5;
-    color: rgba(255,255,255,0.55);
-    min-width: 0;
-    overflow: hidden;
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
-  }
-
-  .ov-score-block {
-    text-align: right;
-    flex-shrink: 0;
-  }
-  .ov-score-num {
-    font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
-    font-weight: 700;
-    font-size: 28px;
-    letter-spacing: -0.04em;
-    line-height: 1;
-    color: #FF2D8E;
-  }
-  .ov-score-label {
-    font-family: 'IBM Plex Mono', 'SF Mono', monospace;
-    font-size: 8px;
-    letter-spacing: 0.16em;
-    text-transform: uppercase;
-    color: rgba(255,255,255,0.22);
-    margin-top: 2px;
-  }
-  .ov-partial {
-    font-family: 'IBM Plex Mono', 'SF Mono', monospace;
-    font-size: 8px;
-    color: rgba(255,255,255,0.18);
+    justify-content: center;
   }
 
   /* ── Overlay: audio ───── */
@@ -295,13 +304,16 @@
 </head>
 <body>
 
-<div id="title">whisper field<div class="subtitle">sex tech sabrina</div></div>
+<div id="title">database of desires<div class="subtitle">sex tech sabrina</div></div>
 <div id="grid"></div>
 
 <!-- detail overlay (full-screen, hidden until a cell is clicked) -->
 <div id="overlay" hidden>
   <button id="overlay-close" aria-label="close">×</button>
+  <div id="overlay-left"></div>
   <canvas id="overlay-canvas"></canvas>
+  <div id="overlay-quote"></div>
+  <div id="overlay-right"></div>
   <div id="overlay-foot"></div>
 </div>
 
@@ -517,6 +529,9 @@
   // ── Overlay state ─────────────────────────────────────────────
   const overlay       = document.getElementById('overlay');
   const overlayClose  = document.getElementById('overlay-close');
+  const overlayLeft   = document.getElementById('overlay-left');
+  const overlayRight  = document.getElementById('overlay-right');
+  const overlayQuote  = document.getElementById('overlay-quote');
   const overlayFoot   = document.getElementById('overlay-foot');
   const overlayCanvas = document.getElementById('overlay-canvas');
   let ovRenderer = null;
@@ -526,31 +541,61 @@
     return f ? `/${f}` : null;
   }
 
+  function barRow(name, val, alignRight) {
+    const v = (val != null && !isNaN(val)) ? Math.max(0, Math.min(1, val)) : null;
+    const pct = v != null ? (v * 100).toFixed(0) : '0';
+    const display = v != null ? v.toFixed(2) : '—';
+    if (alignRight) {
+      return `<div class="ov-bar-row">
+        <span class="ov-bar-val">${display}</span>
+        <div class="ov-bar-track"><div class="ov-bar-fill" style="width:${pct}%"></div></div>
+        <span class="ov-bar-name">${name}</span>
+      </div>`;
+    }
+    return `<div class="ov-bar-row">
+      <span class="ov-bar-name">${name}</span>
+      <div class="ov-bar-track"><div class="ov-bar-fill" style="width:${pct}%"></div></div>
+      <span class="ov-bar-val">${display}</span>
+    </div>`;
+  }
+
   function openOverlay(w) {
     if (ovRenderer) { ovRenderer.stop(); ovRenderer = null; }
 
     const rephrased = (w.llm?.rephrased ?? w.transcript ?? '').trim();
-    const score   = w.sensuality?.score;
-    const partial = w.sensuality?.partial;
-    const src     = audioSrc(w);
+    const src       = audioSrc(w);
+    const comp      = w.sensuality?.components ?? {};
+    const sem       = w.llm?.semantics ?? {};
 
-    // Footer: rephrased text + score + audio
-    const scoreHtml = score != null
-      ? `<div class="ov-score-block">
-           <div class="ov-score-num">${(score * 100).toFixed(0)}</div>
-           <div class="ov-score-label">sensuality index</div>
-           ${partial ? '<div class="ov-partial">partial</div>' : ''}
-         </div>`
-      : '<div></div>';
-    const audioHtml = src
+    // Centered quote below fingerprint
+    overlayQuote.textContent = rephrased;
+
+    // Left strip — acoustic variables (normalized 0-1 from sensuality.components)
+    overlayLeft.innerHTML = [
+      barRow('breathiness',      comp.breathiness,     false),
+      barRow('darkness',         comp.darkness,        false),
+      barRow('softness',         comp.softness,        false),
+      barRow('pitch lowness',    comp.pitchLowness,    false),
+      barRow('pitch steadiness', comp.pitchSteadiness, false),
+      barRow('slowness',         comp.slowness,        false),
+    ].join('');
+
+    // Right strip — semantic variables
+    overlayRight.innerHTML = [
+      barRow('sensory',     sem.sensory,     true),
+      barRow('relational',  sem.relational,  true),
+      barRow('taboo',       sem.taboo,       true),
+      barRow('tenderness',  sem.tenderness,  true),
+      barRow('fantasy',     sem.fantasy,     true),
+      barRow('identity',    sem.identity,    true),
+      barRow('longing',     sem.longing,     true),
+      barRow('unspeakable', sem.unspeakable, true),
+    ].join('');
+
+    // Footer — audio only
+    overlayFoot.innerHTML = src
       ? `<div class="ov-audio"><audio controls src="${src}"></audio></div>`
-      : '<div></div>';
-
-    overlayFoot.innerHTML = `
-      ${rephrased ? `<div class="ov-rephrased">${rephrased}</div>` : '<div></div>'}
-      ${scoreHtml}
-      ${audioHtml}
-    `;
+      : '';
 
     // Fade in, then start renderer after layout settles
     overlay.removeAttribute('hidden');

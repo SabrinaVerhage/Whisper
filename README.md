@@ -90,7 +90,7 @@ Ollama runs as a background service on `localhost:11434`. dolphin-mistral is an 
 |-----|-------------|
 | `/` or `/recorder` | Mobile voice recording + field exploration UI |
 | `/admin` | Admin dashboard — list, inspect, delete entries; shows all three audio players per entry |
-| `/umap` | Whisper Atlas — full field map with PCA/t-SNE layout, multiplayer cursor lenses, fingerprint on hover |
+| `/umap` | Whisper Atlas — interactive 3D field; orbit, zoom, click to inspect whispers; t-SNE/PCA layout |
 | `/gallery` | Gallery display — full-screen grid of all whisper fingerprints, intended for projection or ambient display |
 | `/gallery-interactive` | Interactive gallery — same grid as `/gallery` but clicking any fingerprint opens a full-screen detail view |
 
@@ -335,7 +335,7 @@ Gallery and fingerprint settings are controlled from the **Admin** sidebar cards
 
 ## WebSocket multiplayer
 
-A lightweight WebSocket layer in `server.js` connects phones and the Atlas in real time. Phones send joystick position updates; the Atlas renders a live lens circle per connected phone showing which part of the field they are exploring.
+A lightweight WebSocket layer in `server.js` connects phones and the Atlas in real time. Connected phone count is shown as viewer dots in the Atlas header.
 
 ## File structure
 
@@ -347,7 +347,7 @@ public/
   recorder.css             Mobile styles
   fingerprint.js           Shared deterministic blob renderer
   admin.html               Admin dashboard (original recording + ElevenLabs generated player)
-  umap.html                Whisper Atlas — PCA/t-SNE field, multiplayer lenses
+  umap.html                Whisper Atlas — 3D interactive field (Three.js, t-SNE/PCA layout)
   gallery.html             Gallery display — fingerprint grid for projection / ambient display
   gallery_interactive.html Interactive gallery — same grid, click to expand full-screen detail view
 analysis/
