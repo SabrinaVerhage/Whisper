@@ -207,6 +207,12 @@ body {
   margin: 0;
 }
 
+.header-link {
+  display: block;
+  text-decoration: none;
+  color: inherit;
+}
+
 /* ── shared buttons ────────────────────────────────────────────── */
 .btn {
   border: none;
@@ -405,58 +411,6 @@ body {
 .play-btn:active { opacity: 0.7; }
 
 
-/* ── Live sensuality score ─────────────────────────────────────── */
-.live-si-score {
-  opacity: 0;
-  transition: opacity 0.6s ease;
-  text-align: center;
-  margin-top: 20px;
-}
-
-.live-si-score.recording { opacity: 1; }
-
-.si-score-label {
-  font-family: var(--mono);
-  font-size: 13px;
-  font-weight: 600;
-  letter-spacing: 2px;
-  color: rgba(20,16,24,0.55);
-  text-transform: uppercase;
-  margin: 0;
-}
-
-.si-score-value {
-  font-family: var(--gfont);
-  font-size: 52px;
-  font-weight: 700;
-  line-height: 1;
-  color: var(--tech);
-  margin-top: 2px;
-  letter-spacing: -2px;
-}
-
-.si-score-pct {
-  font-size: 22px;
-  font-weight: 600;
-  letter-spacing: 0;
-}
-
-.si-score-bar-track {
-  width: 160px;
-  height: 3px;
-  background: rgba(20,16,24,0.10);
-  border-radius: 2px;
-  margin: 10px auto 0;
-  overflow: hidden;
-}
-
-.si-score-bar-fill {
-  height: 100%;
-  border-radius: 2px;
-  background: linear-gradient(90deg, var(--energy), var(--pleasure));
-  transition: width 0.3s ease-out;
-  width: 0%;
-}
 
 /* ═══════════════════════════════════════════════════════════════
    SCREEN 3 — ANALYZING
@@ -476,7 +430,6 @@ body {
 .analyzing-label {
   color: rgba(20,16,24,0.45);
   letter-spacing: 3px;
-  text-shadow: 0 0 16px rgba(243,242,240,0.8);
 }
 
 .analyzing-headline {
@@ -487,7 +440,6 @@ body {
   letter-spacing: -0.6px;
   line-height: 1.2;
   color: var(--tech);
-  text-shadow: 0 0 24px rgba(243,242,240,0.9), 0 0 8px rgba(243,242,240,0.7);
 }
 
 /* ── Fingerprint canvas (inside #screen-analyzing, behind text) ── */

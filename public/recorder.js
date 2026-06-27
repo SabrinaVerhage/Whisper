@@ -455,7 +455,7 @@ async function startRecording() {
 
   document.getElementById('recIndicator').classList.add('visible');
   document.getElementById('backButton').style.visibility = 'hidden';
-  document.getElementById('recordCtaHeadline').textContent = 'confessing…';
+  document.getElementById('recordCtaHeadline').textContent = 'whispering…';
   document.getElementById('recordCtaSub').textContent      = 'release to stop';
   document.getElementById('liveSIScore')?.classList.add('recording');
 
@@ -491,7 +491,7 @@ function abortRecording() {
   chunks = [];
   document.getElementById('recIndicator').classList.remove('visible');
   document.getElementById('backButton').style.visibility = '';
-  document.getElementById('recordCtaHeadline').textContent = 'hold to confess';
+  document.getElementById('recordCtaHeadline').textContent = 'hold to whisper';
   document.getElementById('recordCtaSub').textContent = 'no one will know';
   document.getElementById('liveSIScore')?.classList.remove('recording');
   // Restore circle to breathing state
@@ -576,7 +576,6 @@ function animateMeter() {
   updateLiveAura(features.amplitude);
 
   const centroidHz = computeSpectralCentroid();
-  updateLiveSIScore(computeSmoothedLiveSI(features.amplitude, features.noisiness, centroidHz));
 
   // Drive shader: speed ramps with voice amplitude
   shaderAmplitude = features.amplitude;
@@ -633,16 +632,11 @@ function postLiveFeatures(features) {
 
 /* ── Analyzing screen ───────────────────────────────────────────── */
 async function startAnalyzing() {
-  // Rough fingerprint for immediate visual feedback while server processes
-  const roughParams = buildRoughFingerprintParams(latestFeatures, draft);
-  startFingerprintOnCanvas(roughParams);
-
   const headline = document.getElementById('analyzingHeadline');
   if (headline) headline.innerHTML = 'generating your<br>desire fingerprint';
 
-  let record = null;
   try {
-    record = await saveWhisperToServer();
+    const record = await saveWhisperToServer();
     const fp = record.fieldPosition || {};
     enc = {
       id:              record.id,
@@ -667,11 +661,10 @@ async function startAnalyzing() {
       levels:     draft ? draft.levels : [],
       duration:   draft ? draft.duration : 4,
     };
-    lastFingerprintParams = roughParams;
+    lastFingerprintParams = buildRoughFingerprintParams(latestFeatures, draft);
   }
 
-  // Restart with the REAL deterministic params (whisper ID as seed) so the
-  // fingerprint here is identical to every subsequent replay of this whisper.
+  // Start fingerprint once with the real deterministic params.
   startFingerprintOnCanvas(lastFingerprintParams);
 
   // Wait for form (2500ms) + settle (2000ms) + rested display (1500ms) = 6000ms
@@ -887,6 +880,8 @@ document.getElementById('restartButton').addEventListener('click', () => {
   if (currentFingerprint) { currentFingerprint.stop(); currentFingerprint = null; }
   const doneCanvas = document.getElementById('doneCanvas');
   if (doneCanvas) doneCanvas.hidden = true;
+  circleAddClass('');
+  setCircle({ size: 0, opacity: 0, instant: true });
   circleBuilt = false;
   draft = null;
   enc   = null;
@@ -898,7 +893,7 @@ document.getElementById('restartButton').addEventListener('click', () => {
 /* ── Boot ───────────────────────────────────────────────────────── */
 // Fetch fingerprint config non-blocking — available before any fingerprint appears
 (async () => {
-  try { const c = await fetch('/config').then(r => r.json()); _recorderFpCfg = buildFingerprintConfig(c); } catch {}
+  try { const c = await fetch('/config').then(r => r.json()); _recorderFpCfg = buildFingerprintConfig(c); _recorderFpCfg.showSemanticLabels = false; } catch {}
 })();
 
 initShader();

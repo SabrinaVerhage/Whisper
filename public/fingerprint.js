@@ -37,6 +37,7 @@ const FP_CFG_DEFAULTS = {
   showSemanticLabels:       false, // overlay tag names on semantic blobs
   semanticLabelColor:       '#ffffff',
   semanticLabelThreshold:   0.5,   // min raw param value to draw a label (0 = always show)
+  semanticLabelFontScale:   1.0,   // multiplier on base canvas label font size
 };
 
 class FingerprintRenderer {
@@ -107,6 +108,7 @@ class FingerprintRenderer {
 
     this._blobs = [
       { // breathiness — pleasure pink
+        _tag: 'breathiness', _rawValue: p.breathiness,
         color:      this._saturate('#FF2D8E', satAdj),
         radius:     R * (0.28 + p.breathiness * 1.12) * cfg.breathinessSizeScale,
         falloffMid: 0.26 + p.breathiness * 0.22,
@@ -118,6 +120,7 @@ class FingerprintRenderer {
         opacity:    (0.06 + p.breathiness * 0.84) * tendMod,
       },
       { // darkness — curiosity purple
+        _tag: 'darkness', _rawValue: p.darkness,
         color:      this._saturate('#8A2BE2', satAdj),
         radius:     R * (0.22 + p.darkness * 1.18) * cfg.darknessSizeScale,
         falloffMid: 0.26 + p.darkness * 0.22,
@@ -129,6 +132,7 @@ class FingerprintRenderer {
         opacity:    (0.05 + p.darkness * 0.85) * tendMod,
       },
       { // softness — amber (inverted: high softness = smaller/fainter)
+        _tag: 'softness', _rawValue: p.softness,
         color:      this._saturate('#FFAE00', satAdj),
         radius:     R * (0.20 + (1 - p.softness) * 0.90) * cfg.softnessSizeScale,
         falloffMid: 0.26 + (1 - p.softness) * 0.22,
@@ -140,6 +144,7 @@ class FingerprintRenderer {
         opacity:    (0.05 + (1 - p.softness) * 0.82) * tendMod,
       },
       { // pitchLowness — rose
+        _tag: 'pitch lowness', _rawValue: p.pitchLowness,
         color:      this._saturate('#FF5070', satAdj),
         radius:     R * (0.24 + p.pitchLowness * 1.06) * cfg.pitchLownessSizeScale,
         falloffMid: 0.26 + p.pitchLowness * 0.22,
@@ -184,7 +189,7 @@ class FingerprintRenderer {
     // Always added (even at 0 strength) so its label can appear when showSemanticLabels is on.
     this._semanticBlobs.push({
       color: '#FF8FBF', _drawFirst: true,
-      _tag: 'sensory', _rawValue: p.sensory,
+      _tag: 'sensory', _rawValue: p.sensory, _labelOffsetY: -20,
       radius:     R * (1.20 + sensoryStr * 0.80) * cfg.sensorySizeScale,
       orbitR:     R * 0.04,
       orbitAngle: 0,
@@ -210,7 +215,7 @@ class FingerprintRenderer {
 
     // Identity — white-gold anchor at center
     this._semanticBlobs.push({
-      color: '#FFE599', _tag: 'identity', _rawValue: p.identity,
+      color: '#FFE599', _tag: 'identity', _rawValue: p.identity, _labelOffsetY: 20,
       radius:     R * identityStr * 0.40 * cfg.identitySizeScale,
       orbitR:     R * 0.03,
       orbitAngle: 0,
@@ -302,6 +307,7 @@ class FingerprintRenderer {
     const sdOA1 = sdRng() * Math.PI * 2, sdOS1 = 0.04 + sdRng() * 0.04;
     this._solidDots = [
       {
+        _tag: 'pitch steadiness', _rawValue: p.pitchSteadiness, _labelOffsetY: -14,
         color:      '#c8c8c8',                               // light grey — pitchSteadiness
         radius:     R * (0.055 + p.pitchSteadiness * 0.105) * cfg.pitchSteadinessSizeScale,
         orbitR:     R * 0.055, orbitAngle: sdOA0, orbitSpeed: sdOS0,
@@ -312,6 +318,7 @@ class FingerprintRenderer {
         shrinkDelay: sdShrinkRng() * 280, shrinkDur: 400 + sdShrinkRng() * 320,
       },
       {
+        _tag: 'slowness', _rawValue: p.slowness, _labelOffsetY: 14,
         color:      '#4a4a60',                               // dark grey — slowness
         radius:     R * (0.070 + p.slowness * 0.12) * cfg.slownessSizeScale,
         orbitR:     R * 0.040, orbitAngle: sdOA1, orbitSpeed: sdOS1,
@@ -447,7 +454,9 @@ class FingerprintRenderer {
     for (const d of this._accentDots) this._drawBlob(ctx, d, elapsed, formEase, settleEase, breatheAmt, shrinkMs);
     for (const d of this._solidDots)  this._drawSolidDot(ctx, d, elapsed, formEase, settleEase, breatheAmt, shrinkMs);
     if (this._cfg.showSemanticLabels) {
+      for (const b of this._blobs)         this._drawSemanticLabel(ctx, b, elapsed, settleEase, shrinkMs);
       for (const b of this._semanticBlobs) this._drawSemanticLabel(ctx, b, elapsed, settleEase, shrinkMs);
+      for (const d of this._solidDots)     this._drawSemanticLabel(ctx, d, elapsed, settleEase, shrinkMs);
     }
     for (const part of this._particles) {
       if (elapsed < part.delay) continue;
@@ -464,17 +473,15 @@ class FingerprintRenderer {
 
   _drawSemanticLabel(ctx, blob, t, settleEase, shrinkMs) {
     if (!blob._tag || settleEase <= 0) return;
-    // Respect threshold — skip if raw param value is below the configured minimum.
-    // semanticLabelThreshold: 0 = always show, 0.5 = only show when score is notable.
     if (blob._rawValue != null && blob._rawValue < this._cfg.semanticLabelThreshold) return;
     const sf = this._sf(blob, shrinkMs);
     if (sf <= 0) return;
     const orbitX = Math.cos(t * (blob.orbitSpeed || 0.1) + (blob.orbitAngle || 0)) * (blob.orbitR || 0);
     const orbitY = Math.sin(t * (blob.orbitSpeed || 0.1) * 0.71 + (blob.orbitAngle || 0)) * (blob.orbitR || 0) * 0.75;
     const ox = (orbitX * (1 - settleEase) + (blob.restX ?? 0) * settleEase) * sf;
-    const oy = (orbitY * (1 - settleEase) + (blob.restY ?? 0) * settleEase) * sf;
+    const oy = (orbitY * (1 - settleEase) + (blob.restY ?? 0) * settleEase) * sf + (blob._labelOffsetY ?? 0);
     const R = Math.min(this._canvas.width, this._canvas.height) * 0.5;
-    const fontSize = Math.max(10, Math.round(R * 0.09));
+    const fontSize = Math.max(8, Math.round(R * 0.05 * this._cfg.semanticLabelFontScale));
     const label = blob._rawValue != null
       ? `${blob._tag} ${blob._rawValue.toFixed(2)}`
       : blob._tag;
@@ -656,5 +663,6 @@ function buildFingerprintConfig(serverConfig) {
     showSemanticLabels:       c.fp_showSemanticLabels       ?? d.showSemanticLabels,
     semanticLabelColor:       c.fp_semanticLabelColor       ?? d.semanticLabelColor,
     semanticLabelThreshold:   c.fp_semanticLabelThreshold   ?? d.semanticLabelThreshold,
+    semanticLabelFontScale:   c.fp_semanticLabelFontScale   ?? d.semanticLabelFontScale,
   };
 }

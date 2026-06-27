@@ -183,35 +183,27 @@
     text-align: left;
   }
 
-  /* ── Overlay — full-screen 3-column layout ─────────────────── */
+  /* ── Overlay — fade-in dark panel ──────────────────────────── */
   #overlay {
     position: fixed;
     inset: 0;
     z-index: 100;
-    background: #06010f;
-    display: grid;
-    grid-template-columns: 260px 1fr 260px;
-    grid-template-rows: auto 1fr auto;
-    grid-template-areas:
-      "head  head  head"
-      "left  fp    right"
-      "foot  foot  foot";
-    overflow: hidden;
+    background: rgba(6,1,15,0.95);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: opacity 0.45s ease;
+    pointer-events: none;
   }
+  #overlay.visible { opacity: 1; pointer-events: auto; }
   #overlay[hidden] { display: none; }
 
-  /* ── top strip ───── */
-  #overlay-head {
-    grid-area: head;
-    display: flex;
-    align-items: baseline;
-    justify-content: space-between;
-    padding: 18px 22px 12px;
-    border-bottom: 1px solid rgba(255,255,255,0.06);
-    flex-shrink: 0;
-  }
-
   #overlay-close {
+    position: absolute;
+    top: 20px;
+    right: 24px;
     background: none;
     border: none;
     color: rgba(255,255,255,0.28);
@@ -220,78 +212,25 @@
     cursor: pointer;
     padding: 2px 4px;
     transition: color 0.15s;
-    flex-shrink: 0;
   }
   #overlay-close:hover { color: rgba(255,255,255,0.72); }
 
-  /* ── left column — acoustic bars ───── */
-  #overlay-left {
-    grid-area: left;
-    padding: 20px 18px 16px 22px;
-    overflow-y: auto;
-    display: flex;
-    flex-direction: column;
-    border-right: 1px solid rgba(255,255,255,0.05);
-  }
-
-  /* ── center — fingerprint canvas ───── */
-  #overlay-fp {
-    grid-area: fp;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    overflow: hidden;
-    padding: 16px;
-  }
   #overlay-canvas {
     display: block;
-    /* Square canvas that fills the available center space */
-    width:  min(100%, 100vh - 160px);
-    height: min(100%, 100vh - 160px);
-    aspect-ratio: 1;
-  }
-
-  /* ── right column — semantic bars ───── */
-  #overlay-right {
-    grid-area: right;
-    padding: 20px 22px 16px 18px;
-    overflow-y: auto;
-    display: flex;
-    flex-direction: column;
-    border-left: 1px solid rgba(255,255,255,0.05);
-  }
-
-  /* thin scrollbars on side columns */
-  #overlay-left::-webkit-scrollbar,
-  #overlay-right::-webkit-scrollbar { width: 3px; }
-  #overlay-left::-webkit-scrollbar-track,
-  #overlay-right::-webkit-scrollbar-track { background: transparent; }
-  #overlay-left::-webkit-scrollbar-thumb,
-  #overlay-right::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.10); border-radius: 2px; }
-
-  /* ── bottom strip ───── */
-  #overlay-foot {
-    grid-area: foot;
-    display: grid;
-    grid-template-columns: 1fr auto auto;
-    align-items: center;
-    gap: 24px;
-    padding: 12px 22px 16px;
-    border-top: 1px solid rgba(255,255,255,0.06);
+    width:  min(80vw, 78vh);
+    height: min(80vw, 78vh);
     flex-shrink: 0;
   }
 
-  /* ── Overlay: header elements ───── */
-  .ov-wspr {
-    font-family: 'IBM Plex Mono', 'SF Mono', monospace;
-    font-size: 11px;
-    letter-spacing: 0.22em;
-    text-transform: uppercase;
-    color: rgba(255,255,255,0.30);
-  }
-  .ov-wspr span {
-    color: rgba(255,255,255,0.65);
-    margin-right: 14px;
+  /* ── bottom strip ───── */
+  #overlay-foot {
+    position: absolute;
+    bottom: 20px;
+    left: 24px;
+    right: 24px;
+    display: flex;
+    align-items: center;
+    gap: 24px;
   }
 
   /* ── Overlay: footer elements ───── */
@@ -344,81 +283,6 @@
   }
   .ov-audio audio:hover { opacity: 0.9; }
 
-  /* ── Overlay: section heading ───── */
-  .ov-section-title {
-    font-family: 'IBM Plex Mono', 'SF Mono', monospace;
-    font-size: 8px;
-    letter-spacing: 0.24em;
-    text-transform: uppercase;
-    color: rgba(255,255,255,0.18);
-    margin-bottom: 12px;
-    padding-bottom: 6px;
-    border-bottom: 1px solid rgba(255,255,255,0.06);
-    flex-shrink: 0;
-  }
-
-  /* ── Overlay: top semantic tags ───── */
-  .ov-sem-top {
-    font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
-    font-size: 12px;
-    font-weight: 500;
-    color: rgba(255,255,255,0.45);
-    margin-bottom: 14px;
-    flex-shrink: 0;
-  }
-  .ov-sem-top strong {
-    color: rgba(255,255,255,0.80);
-    font-weight: 600;
-  }
-
-  /* ── Overlay: dimension bars ───── */
-  .ov-dim {
-    margin-bottom: 10px;
-    flex-shrink: 0;
-  }
-  .ov-dim:last-child { margin-bottom: 0; }
-
-  .ov-dim-header {
-    display: flex;
-    align-items: baseline;
-    justify-content: space-between;
-    margin-bottom: 4px;
-  }
-  .ov-dim-name {
-    font-family: 'IBM Plex Mono', 'SF Mono', monospace;
-    font-size: 9px;
-    letter-spacing: 0.09em;
-    text-transform: lowercase;
-    color: rgba(255,255,255,0.40);
-  }
-  .ov-dim-val {
-    font-family: 'IBM Plex Mono', 'SF Mono', monospace;
-    font-size: 8.5px;
-    color: rgba(255,255,255,0.22);
-  }
-
-  .ov-bar-track {
-    height: 1.5px;
-    background: rgba(255,255,255,0.07);
-    border-radius: 1px;
-    overflow: hidden;
-  }
-  .ov-bar-fill {
-    height: 100%;
-    border-radius: 1px;
-    transition: width 0.4s cubic-bezier(0.16, 1, 0.3, 1);
-  }
-  .ov-bar-fill.acoustic { background: #FF2D8E; }
-  .ov-bar-fill.semantic { background: #8A2BE2; }
-
-  .ov-stat {
-    margin-top: 3px;
-    font-family: 'IBM Plex Mono', 'SF Mono', monospace;
-    font-size: 7.5px;
-    letter-spacing: 0.09em;
-    color: rgba(255,255,255,0.15);
-  }
-
   /* ── Overlay: pending note ───── */
   .ov-pending {
     font-family: 'IBM Plex Mono', 'SF Mono', monospace;
@@ -426,25 +290,6 @@
     letter-spacing: 0.12em;
     color: rgba(255,255,255,0.18);
     font-style: italic;
-  }
-
-  /* ── Narrow screens: stack ───── */
-  @media (max-width: 700px) {
-    #overlay {
-      grid-template-columns: 1fr;
-      grid-template-rows: auto 40vw auto auto auto;
-      grid-template-areas:
-        "head"
-        "fp"
-        "left"
-        "right"
-        "foot";
-    }
-    #overlay-left, #overlay-right {
-      border: none;
-      border-top: 1px solid rgba(255,255,255,0.05);
-      max-height: 200px;
-    }
   }
 </style>
 </head>
@@ -455,15 +300,8 @@
 
 <!-- detail overlay (full-screen, hidden until a cell is clicked) -->
 <div id="overlay" hidden>
-  <div id="overlay-head">
-    <div id="overlay-wspr" class="ov-wspr"></div>
-    <button id="overlay-close" aria-label="close">×</button>
-  </div>
-  <div id="overlay-left"></div>
-  <div id="overlay-fp">
-    <canvas id="overlay-canvas"></canvas>
-  </div>
-  <div id="overlay-right"></div>
+  <button id="overlay-close" aria-label="close">×</button>
+  <canvas id="overlay-canvas"></canvas>
   <div id="overlay-foot"></div>
 </div>
 
@@ -616,7 +454,7 @@
       cellMap.set(canvas, cellObj);
 
       if (isReal) {
-        cell.addEventListener('click', () => openOverlay(cellObj.whisper, whispers));
+        cell.addEventListener('click', () => openOverlay(cellObj.whisper));
       }
     }
 
@@ -676,51 +514,11 @@
     }
   }, POLL_INTERVAL);
 
-  // ── Statistics ────────────────────────────────────────────────
-  const AC_KEYS  = ['breathiness', 'darkness', 'softness', 'slowness', 'pitchLowness', 'pitchSteadiness'];
-  const SEM_KEYS = ['sensory', 'relational', 'taboo', 'tenderness', 'fantasy', 'identity', 'longing', 'unspeakable'];
-
-  function buildValueArrays(all) {
-    const ac  = {};
-    const sem = {};
-    for (const k of AC_KEYS)  ac[k]  = all.map(w => w.sensuality?.components?.[k]  ?? null).filter(v => v !== null);
-    for (const k of SEM_KEYS) sem[k] = all.map(w => w.llm?.semantics?.[k] ?? null).filter(v => v !== null);
-    return { ac, sem };
-  }
-
-  function similarPercent(value, allValues, threshold = 0.15) {
-    if (value == null || allValues.length < 3) return null;
-    const count = allValues.filter(v => Math.abs(v - value) <= threshold).length;
-    return Math.round((count / allValues.length) * 100);
-  }
-
-  const AC_LABELS = {
-    breathiness:    'breathiness',
-    darkness:       'darkness',
-    softness:       'softness',
-    slowness:       'slowness',
-    pitchLowness:   'pitch lowness',
-    pitchSteadiness:'pitch steadiness',
-  };
-  const SEM_LABELS = {
-    sensory:     'sensory',
-    relational:  'relational',
-    taboo:       'taboo',
-    tenderness:  'tenderness',
-    fantasy:     'fantasy',
-    identity:    'identity',
-    longing:     'longing',
-    unspeakable: 'unspeakable',
-  };
-
   // ── Overlay state ─────────────────────────────────────────────
-  const overlay        = document.getElementById('overlay');
-  const overlayWspr    = document.getElementById('overlay-wspr');
-  const overlayClose   = document.getElementById('overlay-close');
-  const overlayLeft    = document.getElementById('overlay-left');
-  const overlayRight   = document.getElementById('overlay-right');
-  const overlayFoot    = document.getElementById('overlay-foot');
-  const overlayCanvas  = document.getElementById('overlay-canvas');
+  const overlay       = document.getElementById('overlay');
+  const overlayClose  = document.getElementById('overlay-close');
+  const overlayFoot   = document.getElementById('overlay-foot');
+  const overlayCanvas = document.getElementById('overlay-canvas');
   let ovRenderer = null;
 
   function audioSrc(w) {
@@ -728,68 +526,13 @@
     return f ? `/${f}` : null;
   }
 
-  function renderBar(label, value, cssClass, pct) {
-    const fmtVal  = value != null ? value.toFixed(2) : '—';
-    const widthPct = value != null ? Math.round(value * 100) : 0;
-    const statText = pct != null ? `similar to ${pct}% of whispers` : '';
-    return `
-      <div class="ov-dim">
-        <div class="ov-dim-header">
-          <span class="ov-dim-name">${label}</span>
-          <span class="ov-dim-val">${fmtVal}</span>
-        </div>
-        <div class="ov-bar-track">
-          <div class="ov-bar-fill ${cssClass}" style="width:${widthPct}%"></div>
-        </div>
-        ${statText ? `<div class="ov-stat">${statText}</div>` : ''}
-      </div>`;
-  }
-
-  function openOverlay(w, all) {
+  function openOverlay(w) {
     if (ovRenderer) { ovRenderer.stop(); ovRenderer = null; }
 
-    const { ac: acVals, sem: semVals } = buildValueArrays(all);
-
-    const dateStr = w.createdAt
-      ? new Date(w.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
-      : '';
     const rephrased = (w.llm?.rephrased ?? w.transcript ?? '').trim();
     const score   = w.sensuality?.score;
     const partial = w.sensuality?.partial;
-    const comp    = w.sensuality?.components ?? {};
-    const sem     = w.llm?.semantics ?? null;
     const src     = audioSrc(w);
-
-    // Header: wspr code + date
-    overlayWspr.innerHTML = `<span>${w.wspr ?? w.id?.slice(-4) ?? '—'}</span>${dateStr}`;
-
-    // Left column: acoustic bars
-    overlayLeft.innerHTML = `
-      <div class="ov-section-title">acoustic</div>
-      ${AC_KEYS.map(k => renderBar(AC_LABELS[k], comp[k] ?? null, 'acoustic', similarPercent(comp[k] ?? null, acVals[k]))).join('')}
-    `;
-
-    // Right column: semantic bars
-    if (sem) {
-      const sorted = SEM_KEYS
-        .map(k => ({ k, v: sem[k] ?? 0 }))
-        .sort((a, b) => b.v - a.v)
-        .slice(0, 2)
-        .filter(x => x.v > 0.3);
-      const semTopHtml = sorted.length
-        ? `<div class="ov-sem-top">${sorted.map(x => `<strong>${SEM_LABELS[x.k]}</strong>`).join(' · ')}</div>`
-        : '';
-      overlayRight.innerHTML = `
-        <div class="ov-section-title">desire</div>
-        ${semTopHtml}
-        ${SEM_KEYS.map(k => renderBar(SEM_LABELS[k], sem[k] ?? null, 'semantic', similarPercent(sem[k] ?? null, semVals[k]))).join('')}
-      `;
-    } else {
-      overlayRight.innerHTML = `
-        <div class="ov-section-title">desire</div>
-        <div class="ov-pending">semantic analysis pending…</div>
-      `;
-    }
 
     // Footer: rephrased text + score + audio
     const scoreHtml = score != null
@@ -809,9 +552,10 @@
       ${audioHtml}
     `;
 
-    // Show overlay, then start renderer after layout settles
+    // Fade in, then start renderer after layout settles
     overlay.removeAttribute('hidden');
     requestAnimationFrame(() => requestAnimationFrame(() => {
+      overlay.classList.add('visible');
       const rect = overlayCanvas.getBoundingClientRect();
       const cw = Math.round(rect.width);
       const ch = Math.round(rect.height);
@@ -826,14 +570,12 @@
   }
 
   function closeOverlay() {
-    if (ovRenderer) {
-      ovRenderer.shrink(() => {
-        overlay.setAttribute('hidden', '');
-        if (ovRenderer) { ovRenderer.stop(); ovRenderer = null; }
-      });
-    } else {
+    overlay.classList.remove('visible');
+    overlay.addEventListener('transitionend', () => {
       overlay.setAttribute('hidden', '');
-    }
+      if (ovRenderer) { ovRenderer.stop(); ovRenderer = null; }
+    }, { once: true });
+    if (ovRenderer) ovRenderer.shrink(() => {});
   }
 
   overlayClose.addEventListener('click', closeOverlay);

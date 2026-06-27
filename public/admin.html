@@ -361,6 +361,12 @@
         </label>
       </div>
 
+      <div class="fp-var-row">
+        <span class="fp-var-label">label font scale</span>
+        <input type="range" class="fp-var-slider" id="fp_semanticLabelFontScale" min="0.2" max="3" step="0.05">
+        <span class="fp-var-val" id="fp_semanticLabelFontScale_v">1.0×</span>
+      </div>
+
       <div class="row">
         <button onclick="saveFingerprintConfig()">Save fingerprint</button>
         <span class="flash" id="fpFlash">Saved</span>
@@ -1035,6 +1041,7 @@
       fpSet('fp_maskOuter',             c.fp_maskOuter ?? D.maskOuter, '%');
       const lblEl = document.getElementById('fp_showSemanticLabels');
       if (lblEl) lblEl.checked = c.fp_showSemanticLabels ?? D.showSemanticLabels;
+      fpSet('fp_semanticLabelFontScale', (c.fp_semanticLabelFontScale ?? D.semanticLabelFontScale).toFixed(2), '×');
       refreshFpPreview();
     } catch {}
   }
@@ -1100,6 +1107,7 @@
       maskInner:             parseInt(v('fp_maskInner').value)         || 55,
       maskOuter:             parseInt(v('fp_maskOuter').value)         || 92,
       showSemanticLabels:    v('fp_showSemanticLabels').checked,
+      semanticLabelFontScale: parseFloat(v('fp_semanticLabelFontScale').value) || 1.0,
     };
   }
 
@@ -1130,6 +1138,7 @@
       ['fp_particleFantasyScale',  'fp_particleFantasyScale_v',  ''],
       ['fp_maskInner',             'fp_maskInner_v',             '%'],
       ['fp_maskOuter',             'fp_maskOuter_v',             '%'],
+      ['fp_semanticLabelFontScale','fp_semanticLabelFontScale_v','×'],
     ];
     for (const [inputId, dispId, suffix] of sliders) {
       const input = document.getElementById(inputId);
@@ -1176,6 +1185,7 @@
         fp_maskInner:             cfg.maskInner,
         fp_maskOuter:             cfg.maskOuter,
         fp_showSemanticLabels:    cfg.showSemanticLabels,
+        fp_semanticLabelFontScale: cfg.semanticLabelFontScale,
       };
       await fetch('/config', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
       const flash = document.getElementById('fpFlash');

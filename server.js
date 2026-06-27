@@ -918,7 +918,7 @@ async function route(request, response) {
         'fp_particleBase', 'fp_particleFantasyScale', 'fp_satelliteMax',
         'fp_formingMs', 'fp_settlingMs', 'fp_breatheStrength',
         'fp_maskInner', 'fp_maskOuter', 'fp_showSemanticLabels',
-        'fp_semanticLabelThreshold',
+        'fp_semanticLabelThreshold', 'fp_semanticLabelFontScale',
       ];
       for (const k of allowed) {
         if (body[k] !== undefined) config[k] = body[k];
@@ -931,7 +931,8 @@ async function route(request, response) {
 
   if (request.method === "GET" && url.pathname === "/strudel-map") {
     const whispers = await listWhispers();
-    const origin = `http://${request.headers.host}`;
+    const scheme = request.headers["x-forwarded-proto"] || "http";
+    const origin = `${scheme}://${request.headers.host}`;
     const soft = [], warm = [], intense = [];
     for (const w of whispers) {
       if (!w.generatedWhisperFile) continue;
