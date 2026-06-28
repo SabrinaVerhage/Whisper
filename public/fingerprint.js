@@ -238,6 +238,46 @@ class FingerprintRenderer {
       opacity:    0.55 + unspStr * 0.30,
     });
 
+    // Relational — warm coral: bridges breathiness (pink) and darkness (purple)
+    const relStr = Math.max(0, (p.relational - 0.4) * 1.67);
+    this._semanticBlobs.push({
+      color: '#FF7055', _tag: 'relational', _rawValue: p.relational,
+      radius:     R * (0.12 + relStr * 0.50),
+      orbitR:     R * 0.06, orbitAngle: Math.PI * 0.9, orbitSpeed: 0.09,
+      breathFreq: 0.28, wobble: 0.03 * cfg.breatheStrength,
+      opacity:    0.20 + relStr * 0.45,
+    });
+
+    // Tenderness — soft rose: pastel, gentle
+    const tendStr = Math.max(0, (p.tenderness - 0.4) * 1.67);
+    this._semanticBlobs.push({
+      color: '#FFAAD4', _tag: 'tenderness', _rawValue: p.tenderness, _labelOffsetY: -16,
+      radius:     R * (0.10 + tendStr * 0.55),
+      orbitR:     R * 0.05, orbitAngle: Math.PI * 1.2, orbitSpeed: 0.07,
+      breathFreq: 0.20, wobble: 0.02 * cfg.breatheStrength,
+      opacity:    0.18 + tendStr * 0.40,
+    });
+
+    // Fantasy — electric purple: distinct from darkness (#8A2BE2), brighter
+    const fantStr = Math.max(0, (p.fantasy - 0.4) * 1.67);
+    this._semanticBlobs.push({
+      color: '#CC44FF', _tag: 'fantasy', _rawValue: p.fantasy,
+      radius:     R * (0.10 + fantStr * 0.60),
+      orbitR:     R * 0.08, orbitAngle: Math.PI * 0.25, orbitSpeed: 0.15,
+      breathFreq: 0.45, wobble: 0.05 * cfg.breatheStrength,
+      opacity:    0.22 + fantStr * 0.48,
+    });
+
+    // Longing — deep blue: yearning, distance
+    const longStr = Math.max(0, (p.longing - 0.4) * 1.67);
+    this._semanticBlobs.push({
+      color: '#4466EE', _tag: 'longing', _rawValue: p.longing, _labelOffsetY: 16,
+      radius:     R * (0.10 + longStr * 0.55),
+      orbitR:     R * 0.07, orbitAngle: Math.PI * 1.5, orbitSpeed: 0.11,
+      breathFreq: 0.22, wobble: 0.03 * cfg.breatheStrength,
+      opacity:    0.22 + longStr * 0.45,
+    });
+
     // Fixed resting positions — wider spread driven by positionSpread config
     const restRng = this._rng(str + '_rest');
     for (const blob of this._blobs) {

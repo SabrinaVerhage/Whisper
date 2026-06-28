@@ -515,12 +515,16 @@
   buildGrid(whispers);
 
   const POLL_INTERVAL = 15000;
-  let lastFirstId = whispers[0]?.id ?? null;
+  function gridSig(ws) {
+    const llmCount = ws.filter(w => w.llm?.semantics).length;
+    return (ws[0]?.id ?? '') + '|' + ws.length + '|' + llmCount;
+  }
+  let lastSig = gridSig(whispers);
   setInterval(async () => {
     const fresh = await fetchWhispers();
-    const newFirstId = fresh[0]?.id ?? null;
-    if (newFirstId !== lastFirstId) {
-      lastFirstId = newFirstId;
+    const sig = gridSig(fresh);
+    if (sig !== lastSig) {
+      lastSig = sig;
       whispers = fresh;
       buildGrid(whispers);
     }

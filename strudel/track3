@@ -1,0 +1,92 @@
+const res = await fetch('https://whisper.sabrinaverhage.com/strudel-map')
+const map = await res.json()
+const all = map.whisper_all
+if (!all.length) { throw "no generated whispers yet" }
+await samples({ w: all })
+
+setCpm(120/4)
+
+// ── volumes ──────────────────────────────────────────────────
+var whisperVOL = slider(0,  0, 2, 0.05)
+var leadVOL    = slider(0.0, 2, 0.05)
+var arpVOL     = slider(0.0, 2, 0.05)
+var padVOL     = slider(0.05, 0.05)
+var bassVOL    = slider(0.05, 0.05)
+var drumVOL    = slider(0.00, 0.0504)
+                        
+// ── on/off ───────────────────────────────────────────────────
+const WHISPER_ON = 1
+const LEAD_ON    = 1
+const ARP_ON     = 1  
+const PAD_ON     = 1
+const BASS_ON    = 1
+const DRUM_ON    = 1
+
+// ── chords ───────────────────────────────────────────────────
+var chords = chord("<Dm9 Bbmaj7 Am7 Gm9>")
+
+// ── WHISPERS ─────────────────────────────────────────────────
+var whispers = s("w")
+  .n(rand.range(0, all.length).floor())
+  .fast(0).room(0.95).lpf(4000)
+  .gain(whisperVOL).color("lavender")
+
+// ── LEAD — sawtooth melody over chords ───────────────────────
+var lead = n("- - [- 6] [7 <6!3 7>]")
+  .set(chords.anchor("d5"))
+  .voicing()
+  .s("sawtooth")
+  .lpf(sine.range(600, 3500).slow(8))
+  .clip(0.7).room(0.5)
+  .delay(0.4).delayfeedback(0.3)
+  .pan(".3 .7".fast(2))
+  .gain(leadVOL).color("coral")
+
+// ── ARP — high arpeggiated chord notes ───────────────────────
+var arp = n("<0 2 4 2>*4")
+  .set(chords.anchor("c5"))
+  .voicing()
+  .s("sawtooth")
+  .lpf(sine.range(400, 2000).slow(7))
+  .room(0.3).delay(0.25).clip(0.5)
+  .gain(arpVOL).color("olive")
+
+// ── PAD — warm string/new age chord wash ─────────────────────
+var pad = n("[0,2,4]")
+  .set(chords.anchor("c4"))
+  .voicing()
+  .s("gm_pad_new_age:2,gm_synth_strings_1:3")
+  .attack(1.2).room(0.9).lpf(2500)
+  .gain(padVOL).color("skyblue")
+
+// ── BASS ─────────────────────────────────────────────────────
+var bass = n("-5@5 -4")
+  .set(chords.anchor("d3"))
+  .voicing()
+  .s("sine,gm_synth_bass_1:2")
+  .struct("x [x -] x x - x [- x] x*2")
+  .clip(0.92).lpf(500)
+  .gain(bassVOL).color("salmon")
+
+// ── DRUMS (TR-808) ───────────────────────────────────────────
+var kick  = sound("[rolandtr808_bd:13]!4").room(0.3).color("yellow")
+var hats  = sound("[- rolandtr808_hh:2]!4").room(0.2).color("cadetblue")
+var snare = sound("[- rolandtr808_sd:3]!2").room(0.4).color("gold")
+var clap  = sound("clap:4").struct("- x <- [- x]> x").room(0.6).color("pink")
+
+// ── AMBIENT BED (always on) ───────────────────────────────────
+// $: stack(s("crackle").gain(3), s("pink").gain(0.2))
+//   .lpf(2500).slow(16).color("black")
+
+// ─────────────────────────────────────────────────────────────
+$: whispers.postgain(WHISPER_ON)
+
+$: lead.postgain(LEAD_ON)._pianoroll()
+
+$: arp.postgain(ARP_ON)
+
+$: pad.postgain(PAD_ON)
+
+$: bass.postgain(BASS_ON)._pianoroll()
+
+$: stack(kick, hats, snare, clap).gain(drumVOL).postgain(DRUM_ON)

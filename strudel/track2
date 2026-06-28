@@ -1,0 +1,77 @@
+const res = await fetch('https://whisper.sabrinaverhage.com/strudel-map')
+const map = await res.json()
+const all = map.whisper_all
+if (!all.length) { throw "no generated whispers yet" }
+await samples({ w: all })
+
+setCpm(20)
+
+// ── volumes ──────────────────────────────────────────────────
+var whisperVOL = slider(0 0, 2, 0.05)
+var mainVOL    = slider(0,  0, 2, 0.05)
+var harmonyVOL = slider(0, 0, 2, 0.05)
+var bassVOL    = slider(0,  0, 2, 0.05)
+var drumVOL    = slider(0, 0, 2, 0.05)
+
+// ── on/off — set 1 to play, 0 to mute ───────────────────────
+const WHISPER_ON = 1
+const MAIN_ON    = 1
+const HARMONY_ON = 1
+const BASS_ON    = 1
+const DRUM_ON    = 0   // bring in when ready
+
+// ── chords ───────────────────────────────────────────────────
+var chords = chord("<Am9 Fmaj7 Dm9 Em7>")
+
+// ── WHISPERS ─────────────────────────────────────────────────
+var whispers = s("w")
+  .n(rand.range(0, all.length).floor())
+  .slow(4).room(0.95).lpf(3500)
+  .gain(whisperVOL).color("lavender")
+
+// ── MAIN ─────────────────────────────────────────────────────
+var main = n("0 [- 1] 2 [3 -] 2 1 [2 3] [4 -]".slow(2))
+  .set(chords.anchor("c4"))
+  .voicing()
+  .s("gm_synth_strings_1:3")
+  .clip(0.9).room(0.8).delay(0.4)
+  .pan(".4 .6".fast(4))
+  .gain(mainVOL).color("coral")
+
+// ── HARMONY ──────────────────────────────────────────────────
+var harmony = n("[0,2,4]")
+  .set(chords.anchor("c4"))
+  .voicing()
+  .s("gm_pad_new_age:2")
+  .attack(1.5).room(0.95)
+  .gain(harmonyVOL).color("skyblue")
+
+// ── BASS ─────────────────────────────────────────────────────
+var bass = n("-5@5 -4")
+  .set(chords.anchor("c3"))
+  .voicing()
+  .s("sine,gm_synth_bass_1:2")
+  .struct("x [x -] x x - x [- x] x*2")
+  .clip(0.9).gain(bassVOL).color("salmon")
+
+// ── DRUMS ────────────────────────────────────────────────────
+var kick  = s("bd:4").struct("x - x - x - x -").room(0.5).color("yellow")
+var snare = s("mrolandd70_sd,sd:9").struct("- - x - - - x <-!3 x>").degradeBy(0.02).color("gold")
+var hats  = s("hh:1,sh").struct("x x x x x x x x*<1 2>".fast(2)).room(0.25).color("cadetblue")
+
+// ── AMBIENT BED (always on) ───────────────────────────────────
+var bed = stack(s("crackle").gain(3), s("pink").gain(0.2))
+  .lpf(2000).slow(16).color("black")
+
+// ─────────────────────────────────────────────────────────────
+$: bed
+
+$: whispers.postgain(WHISPER_ON)
+
+$: main.postgain(MAIN_ON)
+
+$: harmony.postgain(HARMONY_ON)
+
+$: bass.postgain(BASS_ON)
+
+$: stack(kick, snare, hats).gain(drumVOL).postgain(DRUM_ON)

@@ -255,6 +255,18 @@
       box-shadow: 0 1px 4px rgba(20,16,24,0.12);
     }
     #umapFpLabel.visible { opacity: 1; }
+
+    /* ── Permanent orb ID labels ── */
+    .orb-label {
+      position: absolute;
+      font: 500 6.5px 'IBM Plex Mono', monospace;
+      letter-spacing: 0.08em;
+      color: rgba(20,16,24,0.50);
+      white-space: nowrap;
+      transform: translateX(-50%);
+      pointer-events: none;
+      user-select: none;
+    }
   </style>
 </head>
 <body>
@@ -344,6 +356,16 @@ const DIM_COLORS = {
   pitchSteadiness: '#FFAE00',
 };
 const SEM_COLOR  = '#111111';
+const SEM_DIM_COLORS = {
+  sensory:     '#FF2D8E',
+  relational:  '#FF5070',
+  taboo:       '#9055D4',
+  tenderness:  '#FF8A2B',
+  fantasy:     '#C060E0',
+  identity:    '#FFAE00',
+  longing:     '#8A2BE2',
+  unspeakable: '#FF1493',
+};
 const FLOOR_Y    = -2.2;
 const FP_SPRITE_SIZE = 160;   // offscreen canvas px per sprite
 const FP_WORLD_SCALE = 0.52;  // world units per sprite side
@@ -502,13 +524,15 @@ const FP_SIZE = 340;
 
 /* ── Three.js state ──────────────────────────────────────────────────────── */
 let scene, camera, renderer, raycaster;
-let orbGroup       = null;
-let orbMeshes      = [];
-let pinnedRing     = null;
+let orbGroup        = null;
+let orbMeshes       = [];
+let selectedDot     = null;
 let hoveredPickMesh = null;
-let autoRotate     = false;
+let autoRotate      = false;
+let _labelContainer = null;
 
-const sph = { theta: 0.65, phi: 1.05, radius: 8.5 };
+const sph        = { theta: 0.65, phi: 1.05, radius: 8.5 };
+const lookTarget = new THREE.Vector3(0, 0, 0);
 let isDragging   = false;
 let dragStart    = null;
 let dragSphStart = null;
@@ -534,6 +558,12 @@ function initScene() {
 
   raycaster = new THREE.Raycaster();
 
+  const labelContainer = document.createElement('div');
+  labelContainer.id = 'labelContainer';
+  labelContainer.style.cssText = 'position:absolute;inset:0;pointer-events:none;overflow:hidden;';
+  container.appendChild(labelContainer);
+  _labelContainer = labelContainer;
+
   scene.add(new THREE.AmbientLight(0xffffff, 0.8));
   const dir = new THREE.DirectionalLight(0xffffff, 0.4);
   dir.position.set(3, 5, 3);
@@ -550,11 +580,11 @@ function initScene() {
 function updateCamera() {
   const { theta, phi, radius } = sph;
   camera.position.set(
-    radius * Math.sin(phi) * Math.sin(theta),
-    radius * Math.cos(phi),
-    radius * Math.sin(phi) * Math.cos(theta)
+    lookTarget.x + radius * Math.sin(phi) * Math.sin(theta),
+    lookTarget.y + radius * Math.cos(phi),
+    lookTarget.z + radius * Math.sin(phi) * Math.cos(theta)
   );
-  camera.lookAt(0, 0, 0);
+  camera.lookAt(lookTarget);
 }
 
 /* ── Floor grid ──────────────────────────────────────────────────────────── */
@@ -573,14 +603,15 @@ function buildFloorGrid() {
 
 /* ── Build orbs (fingerprint billboard sprites) ──────────────────────────── */
 function buildOrbs() {
-  // Dispose previous sprites and stop FP renderers
-  for (const { fpRenderer, tex } of orbMeshes) {
+  // Dispose previous sprites, FP renderers, and label elements
+  for (const { fpRenderer, tex, labelEl } of orbMeshes) {
     fpRenderer?.stop();
     tex?.dispose();
+    labelEl?.remove();
   }
   while (orbGroup.children.length) orbGroup.remove(orbGroup.children[0]);
-  orbMeshes = [];
-  if (pinnedRing) { pinnedRing = null; }
+  orbMeshes    = [];
+  selectedDot  = null;
 
   const fpBaseCfg = {
     ..._fpCfg,
@@ -590,16 +621,14 @@ function buildOrbs() {
   };
 
   for (const p of points) {
-    const r = p.r * 0.022;
-
-    // Invisible sphere — used only for raycasting
-    const pickMesh = new THREE.Mesh(
-      new THREE.SphereGeometry(r * 1.4, 8, 6),
-      new THREE.MeshBasicMaterial({ transparent: true, opacity: 0 })
+    // Small black dot — visible anchor + raycast target
+    const dot = new THREE.Mesh(
+      new THREE.SphereGeometry(0.05, 6, 4),
+      new THREE.MeshBasicMaterial({ color: 0x141018 })
     );
-    pickMesh.position.set(p.x3d, p.y3d, p.z3d);
-    pickMesh.userData.point = p;
-    orbGroup.add(pickMesh);
+    dot.position.set(p.x3d, p.y3d, p.z3d);
+    dot.userData.point = p;
+    orbGroup.add(dot);
 
     // Fingerprint canvas → Three.js Sprite (auto-billboard)
     const fpCanvas = document.createElement('canvas');
@@ -626,12 +655,14 @@ function buildOrbs() {
     );
     orbGroup.add(stalk);
 
-    orbMeshes.push({ pickMesh, sprite, fpRenderer, tex, stalk, point: p });
-  }
+    // Permanent ID label
+    const shortId = p.w.id?.slice(-4).toUpperCase() || '????';
+    const labelEl = document.createElement('div');
+    labelEl.className = 'orb-label';
+    labelEl.textContent = 'ID · ' + shortId;
+    _labelContainer.appendChild(labelEl);
 
-  if (pinnedId) {
-    const pt = points.find(p => p.w.id === pinnedId);
-    if (pt) setPinnedRing(pt);
+    orbMeshes.push({ pickMesh: dot, sprite, fpRenderer, tex, stalk, point: p, labelEl });
   }
 
   applyDimFocus();
@@ -646,7 +677,7 @@ function applyDimFocus() {
     } else {
       const val    = getDimValue(point.w, focusDim);
       const sc     = FP_WORLD_SCALE * (0.3 + val * 1.9);
-      const dimHex = parseInt((DIM_COLORS[focusDim] || SEM_COLOR).replace('#',''), 16);
+      const dimHex = parseInt((DIM_COLORS[focusDim] || SEM_DIM_COLORS[focusDim] || '#9055D4').replace('#',''), 16);
       sprite.scale.set(sc, sc, 1);
       sprite.material.color.setHex(lerpColor(0x666666, dimHex, val));
     }
@@ -727,6 +758,18 @@ function animate() {
   }
 
   renderer.render(scene, camera);
+
+  // Sync permanent ID label positions to 3D points
+  if (_labelContainer) {
+    const rect = renderer.domElement.getBoundingClientRect();
+    for (const { point, labelEl } of orbMeshes) {
+      const v = new THREE.Vector3(point.x3d, point.y3d, point.z3d).project(camera);
+      if (v.z > 1) { labelEl.style.display = 'none'; continue; }
+      labelEl.style.display = '';
+      labelEl.style.left = ((v.x * 0.5 + 0.5) * rect.width) + 'px';
+      labelEl.style.top  = ((-v.y * 0.5 + 0.5) * rect.height - 22) + 'px';
+    }
+  }
 }
 
 /* ── Screen projection ───────────────────────────────────────────────────── */
@@ -739,26 +782,24 @@ function projectToScreen(x3d, y3d, z3d) {
   };
 }
 
-/* ── Pinned ring ─────────────────────────────────────────────────────────── */
-function setPinnedRing(point) {
-  if (pinnedRing) { orbGroup.remove(pinnedRing); pinnedRing = null; }
-  if (!point) return;
-  const r = point.r * 0.022;
-  pinnedRing = new THREE.Mesh(
-    new THREE.SphereGeometry(r * 2.2, 14, 10),
-    new THREE.MeshBasicMaterial({ color: 0x111111, wireframe: true, transparent: true, opacity: 0.38 })
-  );
-  pinnedRing.position.set(point.x3d, point.y3d, point.z3d);
-  orbGroup.add(pinnedRing);
-}
-
 /* ── Click → select ─────────────────────────────────────────────────────── */
 function selectOrb(pickMesh) {
   if (!pickMesh) return;
   const p = pickMesh.userData.point;
+
+  // Reset previous selected dot
+  if (selectedDot) {
+    selectedDot.material.color.setHex(0x141018);
+    selectedDot.scale.setScalar(1);
+  }
+  // Highlight new selected dot
+  selectedDot = pickMesh;
+  const dimColor = parseInt((DIM_COLORS[p.dim] || '#FF2D8E').replace('#', ''), 16);
+  selectedDot.material.color.setHex(dimColor);
+  selectedDot.scale.setScalar(1.8);
+
   pinnedId      = p.w.id;
   pinnedWhisper = p.w;
-  setPinnedRing(p);
   renderDetailPanel(p.w, p);
   const sp = projectToScreen(p.x3d, p.y3d, p.z3d);
   openHoverFingerprint(p.w, sp.x, sp.y);
@@ -767,33 +808,69 @@ function selectOrb(pickMesh) {
 /* ── Input controls ──────────────────────────────────────────────────────── */
 function bindControls(container) {
   const el = renderer.domElement;
+  let isPanning = false;
+  let panStart  = null;
+
+  el.addEventListener('contextmenu', e => e.preventDefault());
 
   el.addEventListener('mousemove', e => {
     const rect = el.getBoundingClientRect();
     mouseNorm.x = ((e.clientX - rect.left) / rect.width)  *  2 - 1;
     mouseNorm.y = ((e.clientY - rect.top)  / rect.height) * -2 + 1;
-    if (isDragging && dragStart) onDragMove(e);
+
+    if (isPanning && panStart) {
+      const dx = e.clientX - panStart.x;
+      const dy = e.clientY - panStart.y;
+      panStart = { x: e.clientX, y: e.clientY };
+      const right = new THREE.Vector3()
+        .subVectors(camera.position, lookTarget).normalize()
+        .cross(new THREE.Vector3(0, 1, 0)).normalize();
+      const panSpeed = sph.radius * 0.001;
+      lookTarget.addScaledVector(right, -dx * panSpeed);
+      lookTarget.y += dy * panSpeed;
+      updateCamera();
+    } else if (isDragging && dragStart) {
+      onDragMove(e);
+    }
   });
 
   el.addEventListener('mousedown', e => {
+    if (e.button === 2) {
+      isPanning = true;
+      panStart  = { x: e.clientX, y: e.clientY };
+      return;
+    }
     isDragging   = false;
     dragStart    = { x: e.clientX, y: e.clientY };
     dragSphStart = { theta: sph.theta, phi: sph.phi };
   });
 
   el.addEventListener('mouseup', e => {
+    if (e.button === 2) { isPanning = false; panStart = null; return; }
     const wasD = isDragging;
     isDragging = false;
     dragStart  = null;
     if (!wasD) {
       raycaster.setFromCamera(mouseNorm, camera);
       const hits = raycaster.intersectObjects(orbMeshes.map(o => o.pickMesh));
-      if (hits.length) selectOrb(hits[0].object);
+      if (hits.length) {
+        selectOrb(hits[0].object);
+      } else {
+        // Click on empty space — deselect
+        if (selectedDot) {
+          selectedDot.material.color.setHex(0x141018);
+          selectedDot.scale.setScalar(1);
+          selectedDot = null;
+        }
+        pinnedId = null; pinnedWhisper = null;
+        closeHoverFingerprint();
+      }
     }
   });
 
   el.addEventListener('mouseleave', () => {
     isDragging = false; dragStart = null;
+    isPanning  = false; panStart  = null;
     mouseNorm.set(9999, 9999);
   });
 
@@ -857,9 +934,9 @@ function openHoverFingerprint(w, sx, sy) {
   _umapFpRenderer = new FingerprintRenderer(oc, buildFingerprintParams(w), _fpCfg);
   _umapFpRenderer.start();
 
-  const code  = w.wspr || w.id?.slice(-4).toUpperCase() || '????';
+  const shortId = w.id?.slice(-4).toUpperCase() || '????';
   const label = document.getElementById('umapFpLabel');
-  label.textContent = 'WSPR · ' + code;
+  label.textContent = 'ID · ' + shortId;
   label.style.left  = sx + 'px';
   label.style.top   = (sy - FP_SIZE / 2 - 28) + 'px';
   label.classList.add('visible');
@@ -898,11 +975,11 @@ function renderDetailPanel(w, p) {
     t.textContent = sem;
     tagsEl.appendChild(t);
   }
-  const code = w.wspr || w.id?.slice(-4).toUpperCase() || '????';
+  const shortId = w.id?.slice(-4).toUpperCase() || '????';
   const ct   = document.createElement('span');
   ct.className = 'dp-tag dp-tag--secondary';
   ct.style.letterSpacing = '0.08em';
-  ct.textContent = 'WSPR · ' + code;
+  ct.textContent = 'ID · ' + shortId;
   tagsEl.appendChild(ct);
 
   // Quote
@@ -931,16 +1008,19 @@ function renderDetailPanel(w, p) {
   const semData = w.llm?.semantics || {};
   document.getElementById('dpSemanticBars').innerHTML = SEMANTIC_DIMS.map(k => {
     const v      = semData[k], pct = v != null ? Math.round(Number(v) * 100) : 0;
+    const bc     = SEM_DIM_COLORS[k] || '#9055D4';
     const active = focusDim === k ? ' dp-bar-row--active' : '';
-    return `<div class="dp-bar-row${active}" style="--bar-accent:${SEM_COLOR}">
+    return `<div class="dp-bar-row${active}" style="--bar-accent:${bc}">
       <span class="dp-bar-label">${k}</span>
-      <div class="dp-bar-track"><div class="dp-bar-fill" style="width:${pct}%;background:${SEM_COLOR}"></div></div>
+      <div class="dp-bar-track"><div class="dp-bar-fill" style="width:${pct}%;background:${bc}"></div></div>
       <span class="dp-bar-val">${v != null ? Number(v).toFixed(2) : '—'}</span>
     </div>`;
   }).join('');
 
   // Footer
-  const parts = ['acoustic'];
+  const parts = [];
+  if (w.id) parts.push(w.id.slice(0, 16));
+  parts.push('acoustic');
   if (w.features?.hnr != null) parts.push('Praat/librosa');
   if (showSemantics && w.llm?.semantics) parts.push('semantic · dolphin-mistral');
   document.getElementById('dpFooter').textContent = parts.join(' · ');

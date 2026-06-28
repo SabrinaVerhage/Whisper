@@ -1,0 +1,44 @@
+const res = await fetch('https://whisper.sabrinaverhage.com/strudel-map')
+const map = await res.json()
+const all = map.whisper_all
+if (!all.length) { throw "no generated whispers yet" }
+await samples({ w: all })
+
+setCpm(120/4)
+
+const DRUM_ON    = 1
+const MAIN_ON    = 1
+const BASS_ON    = 1
+const VOCE_ON    = 1
+const WHISPER_ON = 1
+
+/*DRUM*/
+// $: sound("[rolandtr808_bd:13]!4").postgain(DRUM_ON ? 1:0)
+// $: sound("[- rolandtr808_hh:2]!4").postgain(DRUM_ON ? 1:0)
+// $: sound("[- rolandtr808_sd:3]!2").postgain(DRUM_ON ? 1:0)
+
+/*BASS*/
+var chord = n("[0,4?]").scale("<a:minor c:major f:major g:major> <e:minor g:major c:major f:major>")
+  .struct("[[1 [- 1]] [1 [- 1]] [1 [- 1]] [1 1]]/2")
+$: chord.sound("wt_digital:1").trans(-12)
+  .gain(slider(0.0,0.1,2,0.01)).postgain(BASS_ON ? 1:0)._pianoroll()
+
+/*MAIN*/
+var chord = n("[<0?,4,7?> <0?,4,2?>]").scale("<a:minor c:major f:major g:major> <e:minor g:major c:major f:major>")
+  .struct("[1 0 0 1] [1 0 1 1] [1 0 1 0] [1 1 0 1]")
+$: chord.sound("gm_epiano1:4").room("0.2").delay("0.1")
+  .gain(slider(0.0, 0.1,2,0.01)).postgain(MAIN_ON ? 1:0)._pianoroll()
+
+/*VOCE*/
+var chord = n("[0,2,4]").scale("[a:minor c:major f:major g:major]/4")
+  .struct("[1 _ _ _]")
+$: chord.sound("gm_synth_strings_1:3").attack("0.2").detune("1")
+  .lpf(slider(0,1,2000,1)).postgain(VOCE_ON ? 1:0)._pianoroll()
+
+/*WHISPERS — one random whisper every 2 cycles, long reverb tail*/
+$: s("w").n(rand.range(0, all.length).floor())
+  .slow(2).room(0.95).gain(slider(0,1,2,0.01))
+  .postgain(WHISPER_ON ? 1:0)
+
+
+

@@ -383,13 +383,17 @@
   // ── Live update — poll every 15s ──────────────────────────────
   // When a new whisper arrives it slots into position 0 and all others shift.
   const POLL_INTERVAL = 15000;
-  let lastFirstId = whispers[0]?.id ?? null;
+  function gridSig(ws) {
+    const llmCount = ws.filter(w => w.llm?.semantics).length;
+    return (ws[0]?.id ?? '') + '|' + ws.length + '|' + llmCount;
+  }
+  let lastSig = gridSig(whispers);
 
   setInterval(async () => {
     const fresh = await fetchWhispers();
-    const newFirstId = fresh[0]?.id ?? null;
-    if (newFirstId !== lastFirstId) {
-      lastFirstId = newFirstId;
+    const sig = gridSig(fresh);
+    if (sig !== lastSig) {
+      lastSig = sig;
       whispers = fresh;
       buildGrid(whispers);  // full rebuild: new entry at slot 0, rest shift by one
     }
