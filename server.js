@@ -826,7 +826,7 @@ async function route(request, response) {
   }
 
   // POST /whispers/:id/generate — (re)generate ElevenLabs audio for an existing entry.
-  // Reruns Ollama if the record has no llm.affect. Always overwrites the generated mp3.
+  // Always reruns Ollama when a transcript exists (to refresh whisperPhrase/keywords).
   if (request.method === "POST" && /^\/whispers\/[^/]+\/generate$/.test(url.pathname)) {
     const id = url.pathname.split("/")[2];
     const recordPath = path.join(WHISPERS_DIR, `${id}.json`);
@@ -834,8 +834,8 @@ async function route(request, response) {
 
     let r = JSON.parse(await readFile(recordPath, "utf8"));
 
-    // If no transcript we can't run Ollama — still try generate with existing affect if any.
-    if (!r.llm?.affect && r.transcript) {
+    // Always re-run Ollama when a transcript exists — regenerates whisperPhrase + keywords.
+    if (r.transcript) {
       const ollamaResult = await callOllama(r.transcript);
       if (ollamaResult) {
         r.llm = { ...(r.llm || {}), ...ollamaResult, model: OLLAMA_MODEL };
