@@ -379,7 +379,31 @@ async function runUmapPosition(whisperId) {
   });
 }
 
+// Limits concurrent Python/Whisper subprocesses to 1 — prevents OOM when multiple
+// recordings arrive at once. Each call queues behind the previous one.
+const pythonQueue = (() => {
+  let running = 0;
+  const pending = [];
+  return function enqueue(fn) {
+    return new Promise((resolve, reject) => {
+      const run = () => {
+        running++;
+        fn().then(resolve, reject).finally(() => {
+          running--;
+          if (pending.length) pending.shift()();
+        });
+      };
+      if (running < 1) run();
+      else { console.log(`[queue] Python analysis queued (${pending.length + 1} waiting)`); pending.push(run); }
+    });
+  };
+})();
+
 function runPythonAnalysis(audioFilePath, { extraArgs = [], timeoutMs = 60_000 } = {}) {
+  return pythonQueue(() => _runPythonAnalysis(audioFilePath, { extraArgs, timeoutMs }));
+}
+
+function _runPythonAnalysis(audioFilePath, { extraArgs = [], timeoutMs = 60_000 } = {}) {
   // Prefer venv Python (set PYTHON_CMD or falls back to ./venv/bin/python3), then system Python.
   const venvPython = process.env.PYTHON_CMD || path.join(__dirname, "venv", "bin", "python3");
   const pythonCmds = process.platform === "win32" ? ["python", "py", "python3"] : [venvPython, "python3", "python"];
