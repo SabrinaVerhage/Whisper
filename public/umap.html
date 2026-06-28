@@ -261,11 +261,28 @@
       position: absolute;
       font: 500 6.5px 'IBM Plex Mono', monospace;
       letter-spacing: 0.08em;
-      color: rgba(20,16,24,0.50);
+      color: rgba(20,16,24,0.65);
       white-space: nowrap;
       transform: translateX(-50%);
       pointer-events: none;
       user-select: none;
+      background: rgba(221, 218, 214, 0.78);
+      padding: 2px 6px;
+      border-radius: 3px;
+    }
+
+    /* ── Canvas vignette ── */
+    .canvas-vignette {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      z-index: 3;
+      background: radial-gradient(
+        ellipse 80% 75% at 48% 46%,
+        transparent 35%,
+        rgba(195,191,186,0.16) 62%,
+        rgba(180,176,170,0.42) 100%
+      );
     }
   </style>
 </head>
@@ -297,6 +314,7 @@
 
     <canvas id="umapFpCanvas" hidden></canvas>
     <div id="umapFpLabel"></div>
+    <div class="canvas-vignette"></div>
 
     <svg class="grain-overlay" aria-hidden="true">
       <rect width="100%" height="100%" filter="url(#grain-filter)"/>
@@ -589,16 +607,20 @@ function updateCamera() {
 
 /* ── Floor grid ──────────────────────────────────────────────────────────── */
 function buildFloorGrid() {
-  const mat  = new THREE.LineBasicMaterial({ color: 0x141018, transparent: true, opacity: 0.18 });
   const SIZE = 5;
+  const pos = [];
   for (let i = -SIZE; i <= SIZE; i++) {
-    scene.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints([
-      new THREE.Vector3(i, FLOOR_Y, -SIZE), new THREE.Vector3(i, FLOOR_Y, SIZE),
-    ]), mat));
-    scene.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints([
-      new THREE.Vector3(-SIZE, FLOOR_Y, i), new THREE.Vector3(SIZE, FLOOR_Y, i),
-    ]), mat));
+    for (let j = -SIZE; j <= SIZE; j++) {
+      pos.push(i, FLOOR_Y, j);
+    }
   }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  scene.add(new THREE.Points(geo, new THREE.PointsMaterial({
+    color: 0x141018, size: 0.048,
+    transparent: true, opacity: 0.28,
+    sizeAttenuation: true,
+  })));
 }
 
 /* ── Build orbs (fingerprint billboard sprites) ──────────────────────────── */
@@ -645,14 +667,18 @@ function buildOrbs() {
     sprite.material.color.setHex(0x888888);  // grey until dim focus
     orbGroup.add(sprite);
 
-    // Stalk
-    const stalk = new THREE.Line(
-      new THREE.BufferGeometry().setFromPoints([
-        new THREE.Vector3(p.x3d, p.y3d, p.z3d),
-        new THREE.Vector3(p.x3d, FLOOR_Y, p.z3d),
-      ]),
-      new THREE.LineBasicMaterial({ color: 0x141018, transparent: true, opacity: 0.18 })
-    );
+    // Stalk — vertex color gradient: dark at orb, background color at floor (fades to invisible)
+    const stalkGeo = new THREE.BufferGeometry().setFromPoints([
+      new THREE.Vector3(p.x3d, p.y3d,   p.z3d),
+      new THREE.Vector3(p.x3d, FLOOR_Y, p.z3d),
+    ]);
+    stalkGeo.setAttribute('color', new THREE.BufferAttribute(new Float32Array([
+      0x14/255, 0x10/255, 0x18/255,
+      0xDD/255, 0xDA/255, 0xD6/255,
+    ]), 3));
+    const stalk = new THREE.Line(stalkGeo, new THREE.LineBasicMaterial({
+      vertexColors: true, transparent: true, opacity: 0.55,
+    }));
     orbGroup.add(stalk);
 
     // Permanent ID label
@@ -759,15 +785,39 @@ function animate() {
 
   renderer.render(scene, camera);
 
-  // Sync permanent ID label positions to 3D points
+  // Sync permanent ID labels with screen-space overlap culling
   if (_labelContainer) {
     const rect = renderer.domElement.getBoundingClientRect();
-    for (const { point, labelEl } of orbMeshes) {
+    const labelData = orbMeshes.map(({ point, labelEl, pickMesh }) => {
       const v = new THREE.Vector3(point.x3d, point.y3d, point.z3d).project(camera);
-      if (v.z > 1) { labelEl.style.display = 'none'; continue; }
-      labelEl.style.display = '';
-      labelEl.style.left = ((v.x * 0.5 + 0.5) * rect.width) + 'px';
-      labelEl.style.top  = ((-v.y * 0.5 + 0.5) * rect.height - 22) + 'px';
+      if (v.z > 1) return { labelEl, pickMesh, show: false, x: 0, y: 0, depth: 2 };
+      return {
+        labelEl, pickMesh, show: true, depth: v.z,
+        x: (v.x * 0.5 + 0.5) * rect.width,
+        y: (-v.y * 0.5 + 0.5) * rect.height - 22,
+      };
+    });
+    // Closest-first priority; selected/hovered always show
+    const sorted = [...labelData].sort((a, b) => a.depth - b.depth);
+    const placed = [];
+    for (const ld of sorted) {
+      if (!ld.show) continue;
+      const isPinned = ld.pickMesh === selectedDot || ld.pickMesh === hoveredPickMesh;
+      if (!isPinned) {
+        const conflict = placed.some(p => {
+          const dx = p.x - ld.x, dy = p.y - ld.y;
+          return Math.sqrt(dx*dx + dy*dy) < 50;
+        });
+        if (conflict) { ld.show = false; continue; }
+      }
+      placed.push(ld);
+    }
+    for (const ld of labelData) {
+      ld.labelEl.style.display = ld.show ? '' : 'none';
+      if (ld.show) {
+        ld.labelEl.style.left = ld.x + 'px';
+        ld.labelEl.style.top  = ld.y + 'px';
+      }
     }
   }
 }

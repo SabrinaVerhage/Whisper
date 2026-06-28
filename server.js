@@ -1091,8 +1091,10 @@ async function route(request, response) {
     const whispers = await listWhispers();
     const scheme = request.headers["x-forwarded-proto"] || "http";
     const origin = `${scheme}://${request.headers.host}`;
+    const limit = Math.min(parseInt(url.searchParams.get("limit") || "60", 10), 200);
     const soft = [], warm = [], intense = [];
-    for (const w of whispers) {
+    const shuffled = whispers.sort(() => Math.random() - 0.5);
+    for (const w of shuffled) {
       if (!w.generatedWhisperFile) continue;
       const filename = path.basename(w.generatedWhisperFile);
       if (!existsSync(path.join(RECORDINGS_DIR, filename))) continue;
@@ -1101,6 +1103,7 @@ async function route(request, response) {
       if (score < 0.4) soft.push(entry);
       else if (score < 0.7) warm.push(entry);
       else intense.push(entry);
+      if (soft.length + warm.length + intense.length >= limit) break;
     }
     json(response, 200, {
       whisper_soft: soft,
