@@ -3,14 +3,14 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Whisper Atlas</title>
+  <title>database of desires</title>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&display=swap');
 
     * { box-sizing: border-box; margin: 0; padding: 0; }
 
     body {
-      background: #F3F2F0;
+      background: #DDDAD6;
       color: #141018;
       font-family: 'IBM Plex Mono', 'SF Mono', ui-monospace, monospace;
       font-size: 12px;
@@ -25,18 +25,19 @@
       top: 0; left: 0; right: 0;
       z-index: 10;
       display: flex;
-      align-items: center;
+      align-items: flex-start;
       justify-content: space-between;
-      padding: 14px 20px 12px;
+      padding: 18px 22px 24px;
       gap: 16px;
       pointer-events: none;
-      background: linear-gradient(to bottom, rgba(243,242,240,0.88) 0%, transparent 100%);
+      background: linear-gradient(to bottom, rgba(221,218,214,0.92) 0%, transparent 100%);
     }
-    .atlas-title-wrap { display: flex; flex-direction: column; gap: 3px; }
+    .atlas-title-wrap { display: flex; flex-direction: column; gap: 5px; }
     #atlasHeader h1 {
       font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
-      font-size: 14px; font-weight: 500;
-      letter-spacing: 0.01em;
+      font-size: 38px; font-weight: 400;
+      letter-spacing: -0.02em;
+      line-height: 1;
       color: #111111;
     }
     #atlasSubtitle {
@@ -46,6 +47,7 @@
     #atlasRight {
       display: flex; align-items: center; gap: 12px;
       pointer-events: auto;
+      margin-top: 6px;
     }
     .viewer-dot-wrap {
       display: flex; align-items: center; gap: 6px;
@@ -102,7 +104,7 @@
     /* ── Detail panel ── */
     #detailPanel {
       width: 280px; flex-shrink: 0;
-      background: rgba(243,242,240,0.96);
+      background: rgba(221,218,214,0.97);
       backdrop-filter: blur(8px);
       border-left: 1px solid rgba(20,16,24,0.09);
       display: flex; flex-direction: column;
@@ -246,7 +248,7 @@
       font: 500 8px 'IBM Plex Mono', monospace;
       letter-spacing: 0.10em; text-transform: uppercase;
       color: #111111;
-      background: rgba(243,242,240,0.90);
+      background: rgba(221,218,214,0.92);
       padding: 4px 9px; border-radius: 4px;
       white-space: nowrap; transform: translateX(-50%);
       opacity: 0; transition: opacity 0.3s ease;
@@ -268,7 +270,7 @@
 
 <div id="atlasHeader">
   <div class="atlas-title-wrap">
-    <h1>Whisper Atlas</h1>
+    <h1>database of desires</h1>
     <span id="atlasSubtitle">loading…</span>
   </div>
   <div id="atlasRight">
@@ -341,8 +343,10 @@ const DIM_COLORS = {
   pitchLowness:    '#FF5070',
   pitchSteadiness: '#FFAE00',
 };
-const SEM_COLOR  = '#9055D4';
+const SEM_COLOR  = '#111111';
 const FLOOR_Y    = -2.2;
+const FP_SPRITE_SIZE = 160;   // offscreen canvas px per sprite
+const FP_WORLD_SCALE = 0.52;  // world units per sprite side
 
 /* ── Feature helpers ─────────────────────────────────────────────────────── */
 function featureVec(w) {
@@ -498,11 +502,11 @@ const FP_SIZE = 340;
 
 /* ── Three.js state ──────────────────────────────────────────────────────── */
 let scene, camera, renderer, raycaster;
-let orbGroup    = null;
-let orbMeshes   = [];
-let pinnedRing  = null;
-let hoveredMesh = null;
-let autoRotate  = false;
+let orbGroup       = null;
+let orbMeshes      = [];
+let pinnedRing     = null;
+let hoveredPickMesh = null;
+let autoRotate     = false;
 
 const sph = { theta: 0.65, phi: 1.05, radius: 8.5 };
 let isDragging   = false;
@@ -517,8 +521,8 @@ function initScene() {
   const W = container.clientWidth, H = container.clientHeight;
 
   scene = new THREE.Scene();
-  scene.background = new THREE.Color(0xF3F2F0);
-  scene.fog = new THREE.FogExp2(0xF3F2F0, 0.045);
+  scene.background = new THREE.Color(0xDDDAD6);
+  scene.fog = new THREE.FogExp2(0xDDDAD6, 0.045);
 
   camera = new THREE.PerspectiveCamera(55, W / H, 0.1, 100);
   updateCamera();
@@ -555,7 +559,7 @@ function updateCamera() {
 
 /* ── Floor grid ──────────────────────────────────────────────────────────── */
 function buildFloorGrid() {
-  const mat  = new THREE.LineBasicMaterial({ color: 0x141018, transparent: true, opacity: 0.07 });
+  const mat  = new THREE.LineBasicMaterial({ color: 0x141018, transparent: true, opacity: 0.18 });
   const SIZE = 5;
   for (let i = -SIZE; i <= SIZE; i++) {
     scene.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints([
@@ -567,44 +571,64 @@ function buildFloorGrid() {
   }
 }
 
-/* ── Build orbs ──────────────────────────────────────────────────────────── */
+/* ── Build orbs (fingerprint billboard sprites) ──────────────────────────── */
 function buildOrbs() {
+  // Dispose previous sprites and stop FP renderers
+  for (const { fpRenderer, tex } of orbMeshes) {
+    fpRenderer?.stop();
+    tex?.dispose();
+  }
   while (orbGroup.children.length) orbGroup.remove(orbGroup.children[0]);
   orbMeshes = [];
   if (pinnedRing) { pinnedRing = null; }
 
+  const fpBaseCfg = {
+    ..._fpCfg,
+    blendMode:  'multiply',
+    formingMs:  1200,
+    settlingMs: 800,
+  };
+
   for (const p of points) {
-    const hex = parseInt(p.color.replace('#',''), 16);
-    const r   = p.r * 0.022;
+    const r = p.r * 0.022;
 
-    const mesh = new THREE.Mesh(
-      new THREE.SphereGeometry(r, 14, 10),
-      new THREE.MeshBasicMaterial({ color: hex })
+    // Invisible sphere — used only for raycasting
+    const pickMesh = new THREE.Mesh(
+      new THREE.SphereGeometry(r * 1.4, 8, 6),
+      new THREE.MeshBasicMaterial({ transparent: true, opacity: 0 })
     );
-    mesh.position.set(p.x3d, p.y3d, p.z3d);
-    mesh.userData.point = p;
-    orbGroup.add(mesh);
+    pickMesh.position.set(p.x3d, p.y3d, p.z3d);
+    pickMesh.userData.point = p;
+    orbGroup.add(pickMesh);
 
-    const glowMesh = new THREE.Mesh(
-      new THREE.SphereGeometry(r * 2.8, 10, 8),
-      new THREE.MeshBasicMaterial({ color: hex, transparent: true, opacity: 0.12 })
-    );
-    glowMesh.position.copy(mesh.position);
-    orbGroup.add(glowMesh);
+    // Fingerprint canvas → Three.js Sprite (auto-billboard)
+    const fpCanvas = document.createElement('canvas');
+    fpCanvas.width = fpCanvas.height = FP_SPRITE_SIZE;
+    const fpParams   = buildFingerprintParams(p.w);
+    const fpRenderer = new FingerprintRenderer(fpCanvas, fpParams, fpBaseCfg);
+    fpRenderer.start();
 
+    const tex    = new THREE.CanvasTexture(fpCanvas);
+    const spMat  = new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false });
+    const sprite = new THREE.Sprite(spMat);
+    sprite.scale.set(FP_WORLD_SCALE, FP_WORLD_SCALE, 1);
+    sprite.position.set(p.x3d, p.y3d, p.z3d);
+    sprite.material.color.setHex(0x888888);  // grey until dim focus
+    orbGroup.add(sprite);
+
+    // Stalk
     const stalk = new THREE.Line(
       new THREE.BufferGeometry().setFromPoints([
         new THREE.Vector3(p.x3d, p.y3d, p.z3d),
         new THREE.Vector3(p.x3d, FLOOR_Y, p.z3d),
       ]),
-      new THREE.LineBasicMaterial({ color: hex, transparent: true, opacity: 0.18 })
+      new THREE.LineBasicMaterial({ color: 0x141018, transparent: true, opacity: 0.18 })
     );
     orbGroup.add(stalk);
 
-    orbMeshes.push({ mesh, glowMesh, stalk, point: p });
+    orbMeshes.push({ pickMesh, sprite, fpRenderer, tex, stalk, point: p });
   }
 
-  // Restore pinned ring
   if (pinnedId) {
     const pt = points.find(p => p.w.id === pinnedId);
     if (pt) setPinnedRing(pt);
@@ -615,20 +639,16 @@ function buildOrbs() {
 
 /* ── Dimension focus ─────────────────────────────────────────────────────── */
 function applyDimFocus() {
-  for (const { mesh, glowMesh, point } of orbMeshes) {
+  for (const { sprite, point } of orbMeshes) {
     if (!focusDim) {
-      mesh.scale.setScalar(1);
-      glowMesh.scale.setScalar(1);
-      glowMesh.material.opacity = 0.12;
-      mesh.material.color.setHex(parseInt(point.color.replace('#',''), 16));
+      sprite.scale.set(FP_WORLD_SCALE, FP_WORLD_SCALE, 1);
+      sprite.material.color.setHex(0x888888);
     } else {
       const val    = getDimValue(point.w, focusDim);
-      const sc     = 0.3 + val * 1.9;
+      const sc     = FP_WORLD_SCALE * (0.3 + val * 1.9);
       const dimHex = parseInt((DIM_COLORS[focusDim] || SEM_COLOR).replace('#',''), 16);
-      mesh.scale.setScalar(sc);
-      glowMesh.scale.setScalar(sc);
-      glowMesh.material.opacity = 0.04 + val * 0.28;
-      mesh.material.color.setHex(lerpColor(0xcccccc, dimHex, val));
+      sprite.scale.set(sc, sc, 1);
+      sprite.material.color.setHex(lerpColor(0x666666, dimHex, val));
     }
   }
 }
@@ -673,41 +693,35 @@ function animate() {
     updateCamera();
   }
 
-  // Reset scales only when not in focus mode
-  if (!focusDim) {
-    for (const { mesh, glowMesh, point } of orbMeshes) {
-      mesh.scale.setScalar(1);
-      glowMesh.scale.setScalar(1);
-      glowMesh.material.opacity = 0.12;
-      mesh.material.color.setHex(parseInt(point.color.replace('#',''), 16));
-    }
-  }
+  // Sync fingerprint canvases to GPU
+  for (const { tex } of orbMeshes) tex.needsUpdate = true;
 
   // Hover
   if (!isDragging) {
     raycaster.setFromCamera(mouseNorm, camera);
-    const hits = raycaster.intersectObjects(orbMeshes.map(o => o.mesh));
+    const hits = raycaster.intersectObjects(orbMeshes.map(o => o.pickMesh));
     const hit  = hits.length ? hits[0].object : null;
 
-    if (hit !== hoveredMesh) {
-      if (hoveredMesh && hoveredMesh.userData.point?.w.id !== pinnedId) {
+    if (hit !== hoveredPickMesh) {
+      if (hoveredPickMesh && hoveredPickMesh.userData.point?.w.id !== pinnedId) {
         closeHoverFingerprint();
       }
-      hoveredMesh = hit;
-      if (hoveredMesh) {
-        const p  = hoveredMesh.userData.point;
+      hoveredPickMesh = hit;
+      if (hoveredPickMesh) {
+        const p  = hoveredPickMesh.userData.point;
         const sp = projectToScreen(p.x3d, p.y3d, p.z3d);
         openHoverFingerprint(p.w, sp.x, sp.y);
       }
     }
 
-    // Scale hover only in normal mode (focus mode handles its own scale)
-    if (hoveredMesh && !focusDim) {
-      const entry = orbMeshes.find(o => o.mesh === hoveredMesh);
-      if (entry) {
-        hoveredMesh.scale.setScalar(1.6);
-        entry.glowMesh.scale.setScalar(1.5);
-        entry.glowMesh.material.opacity = 0.26;
+    // Apply hover scale (normal mode only; focus mode manages scales via applyDimFocus)
+    if (!focusDim) {
+      for (const { pickMesh, sprite } of orbMeshes) {
+        if (pickMesh === hoveredPickMesh) {
+          sprite.scale.set(FP_WORLD_SCALE * 1.6, FP_WORLD_SCALE * 1.6, 1);
+        } else {
+          sprite.scale.set(FP_WORLD_SCALE, FP_WORLD_SCALE, 1);
+        }
       }
     }
   }
@@ -729,20 +743,19 @@ function projectToScreen(x3d, y3d, z3d) {
 function setPinnedRing(point) {
   if (pinnedRing) { orbGroup.remove(pinnedRing); pinnedRing = null; }
   if (!point) return;
-  const r   = point.r * 0.022;
-  const hex = parseInt(point.color.replace('#',''), 16);
+  const r = point.r * 0.022;
   pinnedRing = new THREE.Mesh(
     new THREE.SphereGeometry(r * 2.2, 14, 10),
-    new THREE.MeshBasicMaterial({ color: hex, wireframe: true, transparent: true, opacity: 0.38 })
+    new THREE.MeshBasicMaterial({ color: 0x111111, wireframe: true, transparent: true, opacity: 0.38 })
   );
   pinnedRing.position.set(point.x3d, point.y3d, point.z3d);
   orbGroup.add(pinnedRing);
 }
 
 /* ── Click → select ─────────────────────────────────────────────────────── */
-function selectOrb(mesh) {
-  if (!mesh) return;
-  const p = mesh.userData.point;
+function selectOrb(pickMesh) {
+  if (!pickMesh) return;
+  const p = pickMesh.userData.point;
   pinnedId      = p.w.id;
   pinnedWhisper = p.w;
   setPinnedRing(p);
@@ -774,7 +787,7 @@ function bindControls(container) {
     dragStart  = null;
     if (!wasD) {
       raycaster.setFromCamera(mouseNorm, camera);
-      const hits = raycaster.intersectObjects(orbMeshes.map(o => o.mesh));
+      const hits = raycaster.intersectObjects(orbMeshes.map(o => o.pickMesh));
       if (hits.length) selectOrb(hits[0].object);
     }
   });
@@ -939,7 +952,7 @@ function updateHeaderViewers() {
   const dots = [{ name: 'you', color: '#FF2D8E' }, ...wsViewers];
   el.innerHTML = dots.map(v => `
     <div class="viewer-dot-wrap">
-      <div class="viewer-dot" style="background:${v.color};box-shadow:0 0 0 2px #F3F2F0,0 0 0 3.5px ${v.color}88"></div>
+      <div class="viewer-dot" style="background:${v.color};box-shadow:0 0 0 2px #DDDAD6,0 0 0 3.5px ${v.color}88"></div>
       <span>${v.name}</span>
     </div>`).join('');
 }
@@ -966,7 +979,10 @@ async function load({ silent = false } = {}) {
   }
   points = [];
 
-  try { const c = await fetch('/config').then(r => r.json()); _fpCfg = buildFingerprintConfig(c); } catch {}
+  try {
+    const c = await fetch('/config').then(r => r.json());
+    _fpCfg = { ...buildFingerprintConfig(c), blendMode: 'multiply' };
+  } catch {}
 
   let whispers;
   try {
