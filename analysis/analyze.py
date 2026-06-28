@@ -134,7 +134,7 @@ def analyze(audio_path):
             import whisper
             import torch
             device = "cuda" if torch.cuda.is_available() else "cpu"
-            model = whisper.load_model("small", device=device)
+            model = whisper.load_model("base", device=device)
             wresult = model.transcribe(audio_path, fp16=(device == "cuda"))
             result["transcript"] = wresult["text"].strip()
             result["transcriptLanguage"] = wresult.get("language", "")

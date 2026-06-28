@@ -446,7 +446,7 @@ Required keys:
   "tension": tightness vs openness in the body — drives nnn vs open vowels
   "playfulness": lightness, hint of irony or play
   "tempo": pace — 0=very slow with long pauses, 1=quick urgent rhythm
-"whisperPhrase": 4–8 words. A short poetic phrase that obliquely references what was said — not literal, not a repetition, but something that hints at the shape of the desire. Loosely like "a [quality] of [body/sensation/moment]". Examples: "a heat behind the knee", "a reaching of the throat", "a softness along the jaw". Never explain or complete the desire.
+"whisperPhrase": 4–8 words. Pull the most charged or physical detail out of the transcript and turn it into a fragment someone could overhear through a wall — enough to sense what it's about, not enough to say it. Concrete and grounded in the actual content. Not a body-part template, not abstract philosophy. Examples by content type: city/night → "the city breathing at 3am" / wanting to be watched → "eyes that don't look away" / power/control → "hands that don't ask permission" / longing for touch → "skin that remembers being found" / a specific place → "that corner where no one looks". Match the register of the desire — something sexy should feel charged, something tender should feel soft.
 "keywords": array of 3–5 single words. Evocative words from the content — body parts, textures, sensations, verbs of desire — that hint at what was said without quoting it directly. Lowercase. No punctuation.
 
 Transcript: ${transcript}`;
