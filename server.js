@@ -923,6 +923,23 @@ async function route(request, response) {
         r.llm = { ...(r.llm || {}), ...ollamaResult, model: OLLAMA_MODEL };
         await writeFile(recordPath, `${JSON.stringify(r, null, 2)}\n`, "utf8");
         console.log(`[ollama] ${id} → "${(ollamaResult.rephrased || "").slice(0, 60)}"`);
+
+        // Auto-chain ElevenLabs — full pipeline in one button click.
+        const vocalScore  = generateVocalScore(ollamaResult.affect ?? {}, ollamaResult.semantics ?? {}, ollamaResult.whisperPhrase ?? null);
+        const genPath     = path.join(RECORDINGS_DIR, `${id}-generated.mp3`);
+        const chosenVoice = pickVoiceId();
+        const genResult   = await callElevenLabs(vocalScore, genPath, chosenVoice);
+        if (genResult) {
+          r.generatedWhisperFile = `recordings/${id}-generated.mp3`;
+          r.vocalScore           = vocalScore;
+          r.generatedVoice       = chosenVoice === ELEVENLABS_MALE_VOICE_ID ? "male" : "female";
+          await writeFile(recordPath, `${JSON.stringify(r, null, 2)}\n`, "utf8");
+          console.log(`[elevenlabs] ${id} [${r.generatedVoice}] — "${vocalScore.slice(0, 70)}"`);
+        } else {
+          console.error(`[elevenlabs] ${id} — failed (check API key / quota)`);
+        }
+      } else {
+        console.error(`[ollama] ${id} — returned null (see above)`);
       }
     }
 

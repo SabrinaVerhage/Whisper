@@ -814,7 +814,11 @@
       const idx = whisperData.findIndex(w => w.id === id);
       if (idx !== -1) whisperData[idx] = data;
       if (status) status.textContent = data.transcript?.trim()
-        ? `✓ transcribed → ${data.llm ? 'LLM done' : 'Ollama failed — check logs'}`
+        ? data.generatedWhisperFile
+          ? `✓ transcribed → LLM → voice generated`
+          : data.llm
+            ? `✓ transcribed → LLM done (ElevenLabs failed — check logs)`
+            : `✓ transcribed (Ollama failed — check logs)`
         : '✓ acoustic done (no transcript returned)';
       btn.textContent = '⟳ re-run pipeline';
       btn.disabled = false;
