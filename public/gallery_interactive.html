@@ -237,11 +237,16 @@
   }
   #overlay-close:hover { color: rgba(255,255,255,0.72); }
 
-  #overlay-canvas {
-    display: block;
+  #overlay-canvas-wrap {
+    position: relative;
     width:  min(80vw, 78vh);
     height: min(80vw, 78vh);
     flex-shrink: 0;
+  }
+  #overlay-canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
   }
 
   /* ── Quote below canvas ───── */
@@ -333,7 +338,10 @@
 <div id="overlay" hidden>
   <button id="overlay-close" aria-label="close">×</button>
   <div id="overlay-left"></div>
-  <canvas id="overlay-canvas"></canvas>
+  <div id="overlay-canvas-wrap">
+    <canvas id="overlay-canvas"></canvas>
+    <div id="overlay-kw-cloud" class="kw-cloud"></div>
+  </div>
   <div id="overlay-quote"></div>
   <div id="overlay-right"></div>
   <div id="overlay-foot"></div>
@@ -569,7 +577,8 @@
   const POLL_INTERVAL = 15000;
   function gridSig(ws) {
     const llmCount = ws.filter(w => w.llm?.semantics).length;
-    return (ws[0]?.id ?? '') + '|' + ws.length + '|' + llmCount;
+    const kwCount  = ws.filter(w => w.llm?.keywords?.length).length;
+    return (ws[0]?.id ?? '') + '|' + ws.length + '|' + llmCount + '|' + kwCount;
   }
   let lastSig = gridSig(whispers);
   setInterval(async () => {
@@ -589,7 +598,8 @@
   const overlayRight  = document.getElementById('overlay-right');
   const overlayQuote  = document.getElementById('overlay-quote');
   const overlayFoot   = document.getElementById('overlay-foot');
-  const overlayCanvas = document.getElementById('overlay-canvas');
+  const overlayCanvas  = document.getElementById('overlay-canvas');
+  const overlayKwCloud = document.getElementById('overlay-kw-cloud');
   let ovRenderer = null;
 
   function audioSrc(w) {
@@ -625,6 +635,21 @@
 
     // Centered quote below fingerprint
     overlayQuote.textContent = rephrased;
+
+    // Keyword cloud floating over canvas
+    overlayKwCloud.innerHTML = '';
+    const kws = w.llm?.keywords;
+    if (kws?.length && w.id) {
+      kws.forEach((word, ki) => {
+        const span = document.createElement('span');
+        span.className = 'kw';
+        span.textContent = word;
+        span.style.left   = (8 + seededFrac(w.id, ki * 3)     * 72) + '%';
+        span.style.top    = (8 + seededFrac(w.id, ki * 3 + 1)  * 72) + '%';
+        span.style.rotate = (seededFrac(w.id, ki * 3 + 2) * 30 - 15) + 'deg';
+        overlayKwCloud.appendChild(span);
+      });
+    }
 
     // Left strip — acoustic variables (normalized 0-1 from sensuality.components)
     overlayLeft.innerHTML = [
