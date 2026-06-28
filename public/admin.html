@@ -970,6 +970,7 @@
         w.generatedWhisperFile ?? '',
         w.generatedVoice       ?? '',
         w.llm?.rephrased       ?? '',
+        w.llm?.keywords?.join(',') ?? '',
       ].join('|')).join('\n');
 
       if (hash !== _lastWhisperHash) {

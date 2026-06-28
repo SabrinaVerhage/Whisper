@@ -78,16 +78,35 @@
     min-height: 0;
   }
 
-  .cell canvas {
-    /* flex: 1 1 0 fills all remaining cell height.
-       Canvas starts at 1×1 so its intrinsic size never fights the flex layout.
-       ResizeObserver immediately updates pixel dimensions to match CSS layout. */
+  .canvas-wrap {
+    position: relative;
     flex: 1 1 0;
     min-height: 0;
     min-width: 0;
     width: 100%;
-    height: 0;
+    overflow: hidden;
+  }
+  .canvas-wrap canvas {
     display: block;
+    width: 100%;
+    height: 100%;
+  }
+  .kw-cloud {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+  }
+  .kw {
+    position: absolute;
+    color: white;
+    mix-blend-mode: difference;
+    font-size: 7.5px;
+    letter-spacing: 0.08em;
+    font-family: 'IBM Plex Mono', 'SF Mono', monospace;
+    text-transform: lowercase;
+    opacity: 0.75;
+    white-space: nowrap;
+    user-select: none;
   }
 
   .cell-wspr {
@@ -267,6 +286,14 @@
     return cell;
   }
 
+  // ── Deterministic position seeder for keyword clouds ─────────
+  function seededFrac(idStr, i) {
+    let h = 0;
+    for (let j = 0; j < idStr.length; j++) h = (Math.imul(31, h) + idStr.charCodeAt(j)) | 0;
+    h = (Math.imul(h ^ (i * 2654435761 | 0), 1540483477)) | 0;
+    return (h >>> 0) / 0xFFFFFFFF;
+  }
+
   // ── Grid state ────────────────────────────────────────────────
   const grid = document.getElementById('grid');
   let cells   = [];
@@ -314,6 +341,10 @@
       const canvas = document.createElement('canvas');
       canvas.width = 1; canvas.height = 1;
 
+      const canvasWrap = document.createElement('div');
+      canvasWrap.className = 'canvas-wrap';
+      canvasWrap.appendChild(canvas);
+
       const wspr   = document.createElement('span'); wspr.className = 'cell-wspr';
       const phrase = document.createElement('span'); phrase.className = 'cell-phrase';
       if (params && wIdx - 1 < n) {
@@ -321,16 +352,32 @@
         wspr.textContent = w.wspr ?? w.id?.slice(-4) ?? '';
         const txt = (w.llm?.rephrased ?? '').trim();
         phrase.textContent = txt.length > 55 ? txt.slice(0, 55) + '…' : txt;
+
+        const kws = w.llm?.keywords;
+        if (kws?.length && w.id) {
+          const cloud = document.createElement('div');
+          cloud.className = 'kw-cloud';
+          kws.forEach((word, ki) => {
+            const span = document.createElement('span');
+            span.className = 'kw';
+            span.textContent = word;
+            span.style.left   = (8  + seededFrac(w.id, ki * 3)      * 72) + '%';
+            span.style.top    = (8  + seededFrac(w.id, ki * 3 + 1)   * 72) + '%';
+            span.style.rotate = (seededFrac(w.id, ki * 3 + 2) * 30 - 15)  + 'deg';
+            cloud.appendChild(span);
+          });
+          canvasWrap.appendChild(cloud);
+        }
       }
 
-      cell.appendChild(canvas);
+      cell.appendChild(canvasWrap);
       cell.appendChild(wspr);
       cell.appendChild(phrase);
       grid.appendChild(cell);
 
-      const cellObj = { canvas, params, renderer: null };
+      const cellObj = { canvas, canvasWrap, params, renderer: null };
       cells.push(cellObj);
-      cellMap.set(canvas, cellObj);
+      cellMap.set(canvasWrap, cellObj);
     }
 
     const activeCells = cells.filter(c => c !== null && c.params !== null);
@@ -349,7 +396,7 @@
         if (cell.renderer) { cell.renderer.stop(); cell.renderer = null; }
       }
     });
-    cells.forEach(c => { if (c) ro.observe(c.canvas); });
+    cells.forEach(c => { if (c) ro.observe(c.canvasWrap); });
 
     // Staggered initial bloom
     setTimeout(() => {
@@ -385,7 +432,8 @@
   const POLL_INTERVAL = 15000;
   function gridSig(ws) {
     const llmCount = ws.filter(w => w.llm?.semantics).length;
-    return (ws[0]?.id ?? '') + '|' + ws.length + '|' + llmCount;
+    const kwCount  = ws.filter(w => w.llm?.keywords?.length).length;
+    return (ws[0]?.id ?? '') + '|' + ws.length + '|' + llmCount + '|' + kwCount;
   }
   let lastSig = gridSig(whispers);
 

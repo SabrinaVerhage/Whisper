@@ -445,6 +445,8 @@ Required keys:
   "tension": tightness vs openness in the body — drives nnn vs open vowels
   "playfulness": lightness, hint of irony or play
   "tempo": pace — 0=very slow with long pauses, 1=quick urgent rhythm
+"whisperPhrase": 4–8 words. A short poetic phrase that obliquely references what was said — not literal, not a repetition, but something that hints at the shape of the desire. Loosely like "a [quality] of [body/sensation/moment]". Examples: "a heat behind the knee", "a reaching of the throat", "a softness along the jaw". Never explain or complete the desire.
+"keywords": array of 3–5 single words. Evocative words from the content — body parts, textures, sensations, verbs of desire — that hint at what was said without quoting it directly. Lowercase. No punctuation.
 
 Transcript: ${transcript}`;
 
@@ -463,10 +465,12 @@ function callOllama(transcript) {
             if (!raw) { resolve(null); return; }
             const cleaned = raw.replace(/^```(?:json)?\s*/i, "").replace(/\s*```\s*$/, "");
             const parsed = JSON.parse(cleaned);
-            const rephrased = typeof parsed.rephrased === "string" ? parsed.rephrased.trim() : null;
-            const semantics = parsed.semantics && typeof parsed.semantics === "object" ? parsed.semantics : null;
-            const affect    = parsed.affect    && typeof parsed.affect    === "object" ? parsed.affect    : null;
-            resolve((rephrased || semantics) ? { rephrased, semantics, affect } : null);
+            const rephrased     = typeof parsed.rephrased     === "string" ? parsed.rephrased.trim()                                 : null;
+            const semantics     = parsed.semantics && typeof parsed.semantics === "object" ? parsed.semantics                         : null;
+            const affect        = parsed.affect    && typeof parsed.affect    === "object" ? parsed.affect                            : null;
+            const whisperPhrase = typeof parsed.whisperPhrase === "string" ? parsed.whisperPhrase.trim()                              : null;
+            const keywords      = Array.isArray(parsed.keywords)           ? parsed.keywords.slice(0, 5).map(String)                  : null;
+            resolve((rephrased || semantics) ? { rephrased, semantics, affect, whisperPhrase, keywords } : null);
           } catch { resolve(null); }
         });
       }
@@ -479,7 +483,7 @@ function callOllama(transcript) {
   });
 }
 
-function generateVocalScore(affect = {}, semantics = {}) {
+function generateVocalScore(affect = {}, semantics = {}, phrase = null) {
   const clamp = (v, d) => Math.min(1, Math.max(0, Number(affect[v] ?? d)));
   const breathiness = clamp("breathiness", 0.5);
   const warmth      = clamp("warmth",      0.5);
@@ -551,10 +555,10 @@ function generateVocalScore(affect = {}, semantics = {}) {
       : ["darkness", "depth", "silence",    "night"];
   }
 
-  const phrase = `${pick(carriers)} ${pick(nouns)}`;
+  const chosenPhrase = phrase || `${pick(carriers)} ${pick(nouns)}`;
 
   // Structure: sound ... [whispering] phrase ... sound
-  return before + gap + "[whispering] " + phrase + gap + after;
+  return before + gap + "[whispering] " + chosenPhrase + gap + after;
 }
 
 function pickVoiceId() {
@@ -676,7 +680,7 @@ async function saveWhisper(payload, { waitForAnalysis = false } = {}) {
             r.llm = { ...(r.llm || {}), ...ollamaResult, model: OLLAMA_MODEL };
             await writeFile(recordPath, `${JSON.stringify(r, null, 2)}\n`, "utf8");
             console.log(`[ollama] ${id} → "${(ollamaResult.rephrased || "").slice(0, 60)}"`);
-            const vocalScore  = generateVocalScore(ollamaResult.affect ?? {}, ollamaResult.semantics ?? {});
+            const vocalScore  = generateVocalScore(ollamaResult.affect ?? {}, ollamaResult.semantics ?? {}, ollamaResult.whisperPhrase ?? null);
             const genPath     = path.join(RECORDINGS_DIR, `${id}-generated.mp3`);
             const chosenVoice = pickVoiceId();
             const genResult   = await callElevenLabs(vocalScore, genPath, chosenVoice);
@@ -717,7 +721,7 @@ async function saveWhisper(payload, { waitForAnalysis = false } = {}) {
               existing.llm = { ...(existing.llm || {}), ...ollamaResult, model: OLLAMA_MODEL };
               await writeFile(recordPath, `${JSON.stringify(existing, null, 2)}\n`, "utf8");
               console.log(`[ollama] ${id} → "${(ollamaResult.rephrased || "").slice(0, 60)}"`);
-              const vocalScore  = generateVocalScore(ollamaResult.affect ?? {}, ollamaResult.semantics ?? {});
+              const vocalScore  = generateVocalScore(ollamaResult.affect ?? {}, ollamaResult.semantics ?? {}, ollamaResult.whisperPhrase ?? null);
               const genPath     = path.join(RECORDINGS_DIR, `${id}-generated.mp3`);
               const chosenVoice = pickVoiceId();
               const genResult   = await callElevenLabs(vocalScore, genPath, chosenVoice);
@@ -845,7 +849,7 @@ async function route(request, response) {
       return;
     }
 
-    const vocalScore  = generateVocalScore(r.llm.affect ?? {}, r.llm.semantics ?? {});
+    const vocalScore  = generateVocalScore(r.llm.affect ?? {}, r.llm.semantics ?? {}, r.llm.whisperPhrase ?? null);
     const genPath     = path.join(RECORDINGS_DIR, `${id}-generated.mp3`);
     const chosenVoice = pickVoiceId();
     const genResult   = await callElevenLabs(vocalScore, genPath, chosenVoice);
