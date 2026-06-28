@@ -463,21 +463,43 @@ function callOllama(transcript) {
         res.on("end", () => {
           try {
             const raw = JSON.parse(data).response?.trim();
-            if (!raw) { resolve(null); return; }
-            const cleaned = raw.replace(/^```(?:json)?\s*/i, "").replace(/\s*```\s*$/, "");
-            const parsed = JSON.parse(cleaned);
+            if (!raw) { console.error("[ollama] empty response from model"); resolve(null); return; }
+            // Strip code fences, then find the first { ... } block in case the model
+            // outputs preamble text before the JSON object.
+            const stripped = raw.replace(/^```(?:json)?\s*/i, "").replace(/\s*```\s*$/, "");
+            const start = stripped.indexOf("{");
+            const end   = stripped.lastIndexOf("}");
+            if (start === -1 || end === -1) {
+              console.error("[ollama] no JSON object found in response:", stripped.slice(0, 120));
+              resolve(null); return;
+            }
+            const parsed = JSON.parse(stripped.slice(start, end + 1));
             const rephrased     = typeof parsed.rephrased     === "string" ? parsed.rephrased.trim()                                 : null;
             const semantics     = parsed.semantics && typeof parsed.semantics === "object" ? parsed.semantics                         : null;
             const affect        = parsed.affect    && typeof parsed.affect    === "object" ? parsed.affect                            : null;
             const whisperPhrase = typeof parsed.whisperPhrase === "string" ? parsed.whisperPhrase.trim()                              : null;
             const keywords      = Array.isArray(parsed.keywords)           ? parsed.keywords.slice(0, 5).map(String)                  : null;
+            if (!rephrased && !semantics) {
+              console.error("[ollama] parsed JSON but missing rephrased+semantics:", JSON.stringify(parsed).slice(0, 120));
+            }
             resolve((rephrased || semantics) ? { rephrased, semantics, affect, whisperPhrase, keywords } : null);
-          } catch { resolve(null); }
+          } catch (e) {
+            console.error("[ollama] JSON parse error:", e.message, "— raw:", data.slice(0, 200));
+            resolve(null);
+          }
         });
       }
     );
-    const t = setTimeout(() => { req.destroy(); resolve(null); }, 30_000);
-    req.on("error", () => { clearTimeout(t); resolve(null); });
+    const t = setTimeout(() => {
+      req.destroy();
+      console.error("[ollama] timed out after 90s — is dolphin-mistral loaded? (ollama list)");
+      resolve(null);
+    }, 90_000);
+    req.on("error", (e) => {
+      clearTimeout(t);
+      console.error("[ollama] connection error:", e.message, "— is Ollama running on port 11434?");
+      resolve(null);
+    });
     req.on("close", () => clearTimeout(t));
     req.write(body);
     req.end();
@@ -691,14 +713,18 @@ async function saveWhisper(payload, { waitForAnalysis = false } = {}) {
               r.generatedVoice       = chosenVoice === ELEVENLABS_MALE_VOICE_ID ? "male" : "female";
               await writeFile(recordPath, `${JSON.stringify(r, null, 2)}\n`, "utf8");
               console.log(`[elevenlabs] ${id} [${r.generatedVoice}] — "${vocalScore.slice(0, 70)}"`);
+            } else {
+              console.error(`[elevenlabs] ${id} — generation failed (check API key / quota)`);
             }
+          } else {
+            console.error(`[ollama] ${id} — returned null after transcription (see above for reason)`);
           }
-        } catch {}
-      }).catch(() => {});
+        } catch (e) { console.error(`[pipeline] ${id} phase-2 error:`, e.message); }
+      }).catch((e) => console.error(`[pipeline] ${id} phase-2 unhandled:`, e.message));
     } else {
       // Background: async after HTTP response is already sent.
       runPythonAnalysis(fullAudioPath).then(async (extra) => {
-        if (!extra) return;
+        if (!extra) { console.error(`[analyze] ${id} — Python returned null (see [analyze.py stderr] above)`); return; }
         try {
           const existing = JSON.parse(await readFile(recordPath, "utf8"));
           const { transcript: pyTranscript, transcriptLanguage, ...acousticFeatures } = extra;
@@ -732,11 +758,17 @@ async function saveWhisper(payload, { waitForAnalysis = false } = {}) {
                 existing.generatedVoice       = chosenVoice === ELEVENLABS_MALE_VOICE_ID ? "male" : "female";
                 await writeFile(recordPath, `${JSON.stringify(existing, null, 2)}\n`, "utf8");
                 console.log(`[elevenlabs] ${id} [${existing.generatedVoice}] — "${vocalScore.slice(0, 70)}"`);
+              } else {
+                console.error(`[elevenlabs] ${id} — generation failed (check API key / quota)`);
               }
+            } else {
+              console.error(`[ollama] ${id} — returned null (see above for reason)`);
             }
+          } else {
+            console.error(`[analyze] ${id} — no transcript returned by Whisper`);
           }
-        } catch {}
-      }).catch(() => {});
+        } catch (e) { console.error(`[pipeline] ${id} background error:`, e.message); }
+      }).catch((e) => console.error(`[pipeline] ${id} background unhandled:`, e.message));
     }
   }
 
@@ -769,7 +801,34 @@ async function route(request, response) {
   }
 
   if (request.method === "GET" && url.pathname === "/health") {
-    json(response, 200, { ok: true, port: config.port });
+    // Ping Ollama to check if it's reachable and the model is loaded.
+    const ollamaOk = await new Promise((resolve) => {
+      const req = httpRequest(
+        { hostname: "127.0.0.1", port: 11434, path: "/api/tags", method: "GET" },
+        (res) => { let d = ""; res.on("data", c => d += c); res.on("end", () => {
+          try {
+            const tags = JSON.parse(d);
+            const models = (tags.models || []).map(m => m.name);
+            resolve({ reachable: true, models, hasDolphin: models.some(m => m.includes("dolphin")) });
+          } catch { resolve({ reachable: true, models: [], hasDolphin: false }); }
+        }); }
+      );
+      req.setTimeout(3000, () => { req.destroy(); resolve({ reachable: false }); });
+      req.on("error", () => resolve({ reachable: false }));
+      req.end();
+    });
+    // Quick Python check — just verify the venv python exists.
+    const venvPython = process.env.PYTHON_CMD || path.join(__dirname, "venv", "bin", "python3");
+    const pythonOk = existsSync(venvPython) || ["python3", "python"].some(cmd => {
+      try { return existsSync(`/usr/bin/${cmd}`) || existsSync(`/usr/local/bin/${cmd}`); } catch { return false; }
+    });
+    json(response, 200, {
+      ok: true,
+      port: config.port,
+      ollama: ollamaOk,
+      python: { venvPath: venvPython, venvExists: existsSync(venvPython) },
+      elevenlabs: { configured: !!(ELEVENLABS_API_KEY && ELEVENLABS_VOICE_ID) },
+    });
     return;
   }
 
