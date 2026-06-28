@@ -380,8 +380,9 @@ async function runUmapPosition(whisperId) {
 }
 
 function runPythonAnalysis(audioFilePath, { extraArgs = [], timeoutMs = 60_000 } = {}) {
-  // On Windows "python" may not exist in PATH — try "py" (launcher) then "python3" as fallbacks.
-  const pythonCmds = process.platform === "win32" ? ["python", "py", "python3"] : ["python3", "python"];
+  // Prefer venv Python (set PYTHON_CMD or falls back to ./venv/bin/python3), then system Python.
+  const venvPython = process.env.PYTHON_CMD || path.join(__dirname, "venv", "bin", "python3");
+  const pythonCmds = process.platform === "win32" ? ["python", "py", "python3"] : [venvPython, "python3", "python"];
 
   function tryCmd(cmds) {
     return new Promise((resolve) => {
@@ -822,6 +823,51 @@ async function route(request, response) {
     const sync = url.searchParams.get("sync") === "1";
     const record = await saveWhisper(payload, { waitForAnalysis: sync });
     json(response, 201, record);
+    return;
+  }
+
+  // POST /whispers/:id/analyze — re-run full Python pipeline (transcription + acoustics) on
+  // an existing entry, then auto-chain Ollama. Useful for entries that were saved before the
+  // Python venv was set up, or after fixing a broken pipeline.
+  if (request.method === "POST" && /^\/whispers\/[^/]+\/analyze$/.test(url.pathname)) {
+    const id = url.pathname.split("/")[2];
+    const recordPath = path.join(WHISPERS_DIR, `${id}.json`);
+    if (!existsSync(recordPath)) { json(response, 404, { error: "Not found." }); return; }
+
+    let r = JSON.parse(await readFile(recordPath, "utf8"));
+    const audioFilePath = r.audioFile ? path.join(__dirname, r.audioFile) : null;
+    if (!audioFilePath || !existsSync(audioFilePath)) {
+      json(response, 422, { error: "No audio file for this entry — cannot re-analyze." });
+      return;
+    }
+
+    const extra = await runPythonAnalysis(audioFilePath, { timeoutMs: 120_000 });
+    if (!extra) {
+      json(response, 502, {
+        error: "Python analysis returned null.",
+        hint: "Check server logs for [analyze.py stderr]. Most likely cause: missing packages — run: python3 -m venv venv && venv/bin/pip install -r analysis/requirements.txt",
+      });
+      return;
+    }
+
+    const { transcript: pyTranscript, transcriptLanguage, ...acousticFeatures } = extra;
+    r.features = { ...r.features, ...acousticFeatures };
+    if (pyTranscript) { r.transcript = pyTranscript; if (transcriptLanguage) r.transcriptLanguage = transcriptLanguage; }
+    r.sensuality = computeSensualityIndex(r.features);
+    r.fieldPosition = computeFieldPosition(r.features, r.sensuality);
+    await writeFile(recordPath, `${JSON.stringify(r, null, 2)}\n`, "utf8");
+    console.log(`[analyze] re-run ${id} — transcript: "${pyTranscript?.slice(0, 60) ?? "—"}"`);
+
+    if (r.transcript) {
+      const ollamaResult = await callOllama(r.transcript);
+      if (ollamaResult) {
+        r.llm = { ...(r.llm || {}), ...ollamaResult, model: OLLAMA_MODEL };
+        await writeFile(recordPath, `${JSON.stringify(r, null, 2)}\n`, "utf8");
+        console.log(`[ollama] ${id} → "${(ollamaResult.rephrased || "").slice(0, 60)}"`);
+      }
+    }
+
+    json(response, 200, r);
     return;
   }
 

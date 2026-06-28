@@ -6,13 +6,16 @@
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <title>Whisper</title>
-    <link rel="stylesheet" href="/public/recorder.css?v=4" />
+    <link rel="stylesheet" href="/public/recorder.css?v=5" />
   </head>
   <body>
     <main class="app-shell">
 
       <!-- WebGL gradient canvas — persistent background for all screens -->
       <canvas id="shaderCanvas" aria-hidden="true"></canvas>
+
+      <!-- Fingerprint canvas — persistent across analyzing + done screens -->
+      <canvas id="fingerprintCanvas" aria-hidden="true" hidden></canvas>
 
       <!-- ── SCREEN 1: SPLASH ───────────────────────────────── -->
       <section id="screen-splash" class="screen screen--active" aria-label="Welcome">
@@ -54,8 +57,6 @@
 
       <!-- ── SCREEN 3: ANALYZING ────────────────────────────── -->
       <section id="screen-analyzing" class="screen" aria-label="Analyzing your whisper" aria-live="polite">
-        <!-- Fingerprint blob animation — behind the text -->
-        <canvas id="fingerprintCanvas" aria-hidden="true" hidden></canvas>
         <div class="analyzing-content">
           <p class="label-mono analyzing-label anim-in">ANALYZING</p>
           <p class="analyzing-headline anim-in" id="analyzingHeadline">listening to<br>your whisper…</p>
@@ -64,7 +65,7 @@
 
       <!-- ── SCREEN 4: DONE ─────────────────────────────────────── -->
       <section id="screen-done" class="screen" aria-label="Your whisper is placed">
-        <canvas id="doneCanvas" aria-hidden="true" hidden></canvas>
+        <div class="done-overlay" aria-hidden="true"></div>
         <div class="done-content">
           <div class="done-top">
             <p class="label-mono anim-in">ADDED TO DATABASE OF DESIRES</p>
@@ -84,7 +85,7 @@
 
     </main>
 
-    <script src="/public/fingerprint.js?v=4"></script>
-    <script src="/public/recorder.js?v=4"></script>
+    <script src="/public/fingerprint.js?v=5"></script>
+    <script src="/public/recorder.js?v=5"></script>
   </body>
 </html>

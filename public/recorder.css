@@ -88,7 +88,7 @@ body {
   pointer-events: none;
   transition: opacity 0.28s ease;
   background: transparent;
-  z-index: 1;
+  z-index: 3;
 }
 
 .screen--active {
@@ -442,35 +442,29 @@ body {
   color: var(--tech);
 }
 
-/* ── Fingerprint canvas (inside #screen-analyzing, behind text) ── */
+/* ── Fingerprint canvas — persistent app-shell child, behind screens ── */
 #fingerprintCanvas {
   position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
-  z-index: 1;
+  z-index: 2;
   display: block;
 }
 
 /* ═══════════════════════════════════════════════════════════════
    SCREEN 4 — DONE
 ════════════════════════════════════════════════════════════════ */
-#screen-done {
-  background: rgba(20, 16, 24, 0.50);
-}
-
-#doneCanvas {
+.done-overlay {
   position: absolute;
   inset: 0;
-  width: 100%;
-  height: 100%;
-  z-index: 1;
-  display: block;
+  background: rgba(20, 16, 24, 0.40);
+  z-index: 0;
 }
 
 .done-content {
   position: relative;
-  z-index: 2;
+  z-index: 1;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
@@ -484,8 +478,11 @@ body {
   font-size: 22px;
   font-weight: 700;
   letter-spacing: 1px;
-  color: var(--tech);
-  text-shadow: 0 0 24px rgba(243,242,240,0.9);
+  color: var(--paper);
+}
+
+#screen-done .label-mono {
+  color: rgba(243, 242, 240, 0.55);
 }
 
 .done-code-label .dot-sep { color: var(--pleasure); }
@@ -499,9 +496,8 @@ body {
 .done-message {
   margin: 0;
   font-size: 17px;
-  color: var(--dim);
+  color: rgba(243, 242, 240, 0.75);
   text-align: center;
-  text-shadow: 0 0 16px rgba(243,242,240,0.8);
 }
 
 /* ── reduced motion ────────────────────────────────────────────── */

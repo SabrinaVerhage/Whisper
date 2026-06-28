@@ -82,14 +82,36 @@
     opacity: 0.85;
   }
 
-  .cell canvas {
+  .canvas-wrap {
+    position: relative;
     flex: 1 1 0;
     min-height: 0;
     min-width: 0;
     width: 100%;
-    height: 0;
+    overflow: hidden;
+  }
+  .canvas-wrap canvas {
     display: block;
+    width: 100%;
+    height: 100%;
     transition: opacity 0.15s;
+  }
+  .kw-cloud {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+  }
+  .kw {
+    position: absolute;
+    color: white;
+    mix-blend-mode: difference;
+    font-size: 7.5px;
+    letter-spacing: 0.08em;
+    font-family: 'IBM Plex Mono', 'SF Mono', monospace;
+    text-transform: lowercase;
+    opacity: 0.75;
+    white-space: nowrap;
+    user-select: none;
   }
 
   .cell-wspr {
@@ -345,8 +367,10 @@
   };
   const gridFpCfg = {
     ...fpCfg,
-    blendMode:          THEME === 'light' ? 'multiply' : 'screen',
-    semanticLabelColor: THEME === 'light' ? '#000000'  : '#ffffff',
+    blendMode:              THEME === 'light' ? 'multiply' : 'screen',
+    semanticLabelColor:     THEME === 'light' ? '#000000'  : '#ffffff',
+    showSemanticLabels:     true,
+    semanticLabelThreshold: 0.51,  // only labels where value > 0.5 (excludes neutral defaults)
   };
   const COLS          = Math.max(1, cfg.galleryCols          ?? 8);
   const ROWS          = Math.max(1, cfg.galleryRows          ?? 4);
@@ -395,6 +419,14 @@
     cell.appendChild(hl);
     cell.appendChild(body);
     return cell;
+  }
+
+  // ── Deterministic position seeder for keyword clouds ─────────
+  function seededFrac(idStr, i) {
+    let h = 0;
+    for (let j = 0; j < idStr.length; j++) h = (Math.imul(31, h) + idStr.charCodeAt(j)) | 0;
+    h = (Math.imul(h ^ (i * 2654435761 | 0), 1540483477)) | 0;
+    return (h >>> 0) / 0xFFFFFFFF;
   }
 
   // ── Grid state ────────────────────────────────────────────────
@@ -448,22 +480,42 @@
       const canvas = document.createElement('canvas');
       canvas.width = 1; canvas.height = 1;
 
+      const canvasWrap = document.createElement('div');
+      canvasWrap.className = 'canvas-wrap';
+      canvasWrap.appendChild(canvas);
+
       const wspr   = document.createElement('span'); wspr.className = 'cell-wspr';
       const phrase = document.createElement('span'); phrase.className = 'cell-phrase';
       if (isReal) {
         wspr.textContent = whisper.wspr ?? whisper.id?.slice(-4) ?? '';
         const txt = (whisper.llm?.rephrased ?? '').trim();
         phrase.textContent = txt.length > 55 ? txt.slice(0, 55) + '…' : txt;
+
+        const kws = whisper.llm?.keywords;
+        if (kws?.length && whisper.id) {
+          const cloud = document.createElement('div');
+          cloud.className = 'kw-cloud';
+          kws.forEach((word, ki) => {
+            const span = document.createElement('span');
+            span.className = 'kw';
+            span.textContent = word;
+            span.style.left   = (8 + seededFrac(whisper.id, ki * 3)     * 72) + '%';
+            span.style.top    = (8 + seededFrac(whisper.id, ki * 3 + 1)  * 72) + '%';
+            span.style.rotate = (seededFrac(whisper.id, ki * 3 + 2) * 30 - 15) + 'deg';
+            cloud.appendChild(span);
+          });
+          canvasWrap.appendChild(cloud);
+        }
       }
 
-      cell.appendChild(canvas);
+      cell.appendChild(canvasWrap);
       cell.appendChild(wspr);
       cell.appendChild(phrase);
       grid.appendChild(cell);
 
-      const cellObj = { canvas, params, renderer: null, whisper: isReal ? whisper : null };
+      const cellObj = { canvas, canvasWrap, params, renderer: null, whisper: isReal ? whisper : null };
       cells.push(cellObj);
-      cellMap.set(canvas, cellObj);
+      cellMap.set(canvasWrap, cellObj);
 
       if (isReal) {
         cell.addEventListener('click', () => openOverlay(cellObj.whisper));
@@ -485,7 +537,7 @@
         if (cell.renderer) { cell.renderer.stop(); cell.renderer = null; }
       }
     });
-    cells.forEach(c => { if (c) ro.observe(c.canvas); });
+    cells.forEach(c => { if (c) ro.observe(c.canvasWrap); });
 
     setTimeout(() => {
       activeCells.forEach((cell, i) => setTimeout(() => activateCell(cell), i * INITIAL_STAGGER));

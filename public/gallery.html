@@ -233,9 +233,11 @@
   const THEME      = cfg.galleryTheme          ?? 'dark';
   const fpCfg = {
     ...buildFingerprintConfig(cfg),
-    blendMode:          THEME === 'light' ? 'multiply'  : 'screen',
-    semanticLabelColor: THEME === 'light' ? '#000000'   : '#ffffff',
-    maskShape:          cfg.fp_maskShape ?? 'rect',  // rounded-rectangle vignette fills more of each cell
+    blendMode:              THEME === 'light' ? 'multiply'  : 'screen',
+    semanticLabelColor:     THEME === 'light' ? '#000000'   : '#ffffff',
+    maskShape:              cfg.fp_maskShape ?? 'rect',
+    showSemanticLabels:     true,
+    semanticLabelThreshold: 0.51,  // only labels where value > 0.5 (excludes neutral defaults)
   };
   const COLS       = Math.max(1, cfg.galleryCols          ?? 8);
   const ROWS       = Math.max(1, cfg.galleryRows          ?? 4);

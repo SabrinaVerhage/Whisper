@@ -139,6 +139,8 @@ Admin uses its own dark palette (--bg: #0a0a0f, --accent: #7b6fff).
 | GET | `/whispers` | list all whispers newest-first |
 | POST | `/whispers` | save new whisper |
 | DELETE | `/whispers/:id` | delete whisper + audio |
+| POST | `/whispers/:id/analyze` | re-run Python pipeline (transcription + acoustics + Ollama) on existing entry |
+| POST | `/whispers/:id/generate` | (re)generate ElevenLabs voice for existing entry |
 | GET | `/recordings/:filename` | stream audio file |
 | POST | `/osc/live` | relay live features via OSC |
 

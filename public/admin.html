@@ -70,6 +70,7 @@
     .w-si { font-size: 14px; font-weight: 500; flex-shrink: 0; min-width: 36px; text-align: right; }
     .btn-delete { background: none; border: 1px solid var(--border); color: var(--muted); border-radius: 4px; padding: 2px 8px; font-family: inherit; font-size: 10px; cursor: pointer; flex-shrink: 0; line-height: 1.6; }
     .btn-delete:hover { border-color: var(--red); color: var(--red); background: none; opacity: 1; }
+    .w-pipe { font-size: 10px; letter-spacing: 0.06em; flex-shrink: 0; }
 
     /* ── Expanded body ── */
     .whisper-body { display: none; border-top: 1px solid var(--border); padding: 16px 14px; }
@@ -607,6 +608,7 @@
 
     const generateLabel = generatedWhisperFile ? '↺ regenerate whisper' : '✦ generate whisper';
     const hasTranscript = !!(w.transcript?.trim());
+    const hasAudio      = !!(w.audioFile);
     const generateHint  = !hasTranscript ? 'title="needs a transcript first"' : '';
 
     return `
@@ -616,6 +618,11 @@
       ${audioHtml}
       <div style="margin-top:16px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
         <button class="json-toggle" onclick="toggleJson('${w.id}')">show raw JSON</button>
+        <button id="rerun-btn-${w.id}" class="json-toggle"
+          style="${hasAudio ? 'color:#facc15;border-color:#facc1544' : 'color:#555;border-color:#333;cursor:not-allowed'}"
+          onclick="rerunPipeline('${w.id}')"
+          ${hasAudio ? '' : 'disabled title="no audio file"'}>⟳ re-run pipeline</button>
+        <span id="rerun-status-${w.id}" style="font-size:11px;color:var(--muted)"></span>
         <button id="gen-btn-${w.id}" class="json-toggle"
           style="${hasTranscript ? 'color:#a78bfa;border-color:#a78bfa44' : 'color:#555;border-color:#333;cursor:not-allowed'}"
           onclick="generateWhisper('${w.id}')" ${generateHint}
@@ -654,12 +661,16 @@
       const si  = w.sensuality?.score;
       const dur = w.features?.durationLibrosa ?? w.features?.duration;
       const isOpen = expanded.has(w.id);
+      const pipeStage  = w.generatedWhisperFile ? '✦' : w.llm ? 'llm' : w.transcript?.trim() ? 'txt' : w.audioFile ? 'raw' : '—';
+      const pipeColor  = w.generatedWhisperFile ? '#a78bfa' : w.llm ? '#60a5fa' : w.transcript?.trim() ? '#4ade80' : w.audioFile ? '#facc15' : 'var(--muted)';
+      const pipeTip    = w.generatedWhisperFile ? 'voice generated' : w.llm ? 'LLM done' : w.transcript?.trim() ? 'transcribed' : w.audioFile ? 'audio only' : 'no audio';
       return `
         <div class="whisper-item">
           <div class="whisper-head" onclick="toggle('${w.id}')">
             <span class="w-id">${w.id?.slice(-8) ?? ''}</span>
             <span class="w-time">${formatDate(w.createdAt)}</span>
             <span class="w-dur">${dur != null ? `${Math.round(dur)}s` : '—'}</span>
+            <span class="w-pipe" style="color:${pipeColor}" title="${pipeTip}">${pipeStage}</span>
             <span class="w-transcript${(w.llm?.rephrased || w.transcript?.trim()) ? ' has-text' : ''}">${esc(w.llm?.rephrased || w.transcript?.trim() || 'wordless whisper')}</span>
             <span class="w-si-label">si</span>
             <span class="w-si" style="color:${si != null ? siScoreColor(si) : 'var(--muted)'}">${si != null ? si.toFixed(2) : '—'}</span>
@@ -777,6 +788,54 @@
       if (status) status.textContent = `✗ ${e.message}`;
       btn.disabled = false;
       btn.textContent = '↺ retry';
+    }
+  }
+
+  async function rerunPipeline(id) {
+    const btn    = document.getElementById(`rerun-btn-${id}`);
+    const status = document.getElementById(`rerun-status-${id}`);
+    if (!btn) return;
+    btn.disabled = true;
+    btn.textContent = '⏳ analyzing… (up to 120s)';
+    if (status) status.textContent = '';
+
+    try {
+      const res  = await fetch(`/whispers/${id}/analyze`, { method: 'POST' });
+      const data = await res.json();
+      if (!res.ok) {
+        if (status) {
+          status.textContent = `✗ ${data.error || res.statusText}`;
+          if (data.hint) status.textContent += ` — ${data.hint}`;
+        }
+        btn.disabled = false;
+        btn.textContent = '⟳ retry';
+        return;
+      }
+      const idx = whisperData.findIndex(w => w.id === id);
+      if (idx !== -1) whisperData[idx] = data;
+      if (status) status.textContent = data.transcript?.trim()
+        ? `✓ transcribed → ${data.llm ? 'LLM done' : 'Ollama failed — check logs'}`
+        : '✓ acoustic done (no transcript returned)';
+      btn.textContent = '⟳ re-run pipeline';
+      btn.disabled = false;
+      drawnAudio.delete(id);
+      const body = document.getElementById(`body-${id}`);
+      if (body) {
+        body.innerHTML = renderWhisperBody(data);
+        if (data.audioFile) {
+          drawnAudio.add(id);
+          const filename = data.audioFile.split('/').pop();
+          setTimeout(() => drawAudioVisuals(
+            `/recordings/${filename}`,
+            document.getElementById(`wave-${id}`),
+            document.getElementById(`spect-${id}`)
+          ), 0);
+        }
+      }
+    } catch (e) {
+      if (status) status.textContent = `✗ ${e.message}`;
+      btn.disabled = false;
+      btn.textContent = '⟳ retry';
     }
   }
 

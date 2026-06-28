@@ -87,6 +87,15 @@ let cachedStream = null;
 /* ── persistent circle state ────────────────────────────────────── */
 let circleBuilt = false;
 
+/* ── Wake lock ──────────────────────────────────────────────────── */
+let wakeLock = null;
+async function acquireWakeLock() {
+  try { if ('wakeLock' in navigator) wakeLock = await navigator.wakeLock.request('screen'); } catch {}
+}
+function releaseWakeLock() {
+  if (wakeLock) { wakeLock.release(); wakeLock = null; }
+}
+
 /* ── Fingerprint state ──────────────────────────────────────────── */
 let currentFingerprint    = null;
 let lastFingerprintParams = null;
@@ -632,6 +641,7 @@ function postLiveFeatures(features) {
 
 /* ── Analyzing screen ───────────────────────────────────────────── */
 async function startAnalyzing() {
+  acquireWakeLock();
   shaderAmplitude = 0.7;
   const headline = document.getElementById('analyzingHeadline');
   if (headline) headline.innerHTML = 'generating your<br>desire fingerprint';
@@ -672,8 +682,7 @@ async function startAnalyzing() {
   // so the user always sees the fully settled fingerprint before the shrink.
   await new Promise(r => setTimeout(r, 6000));
 
-  shaderAmplitude = 0;
-  stopFingerprintOnCanvas();
+  releaseWakeLock();
   showScreen('done');
 }
 
@@ -726,27 +735,8 @@ function stopFingerprintOnCanvas() {
 function renderDoneScreen() {
   if (!enc) return;
   document.getElementById('fieldCode').textContent = enc.wspr;
-  startFingerprintOnDoneCanvas();
+  circleAddClass('');
   setCircle({ opacity: 0, transition: 'opacity 0.35s ease' });
-}
-
-function startFingerprintOnDoneCanvas() {
-  if (!lastFingerprintParams) return;
-  const canvas = document.getElementById('doneCanvas');
-  if (!canvas) return;
-  const shell = document.querySelector('.app-shell');
-  const dpr   = Math.min(window.devicePixelRatio || 1, 2);
-  const sw    = shell?.offsetWidth  || 390;
-  const sh    = shell?.offsetHeight || 844;
-  canvas.width        = Math.round(sw * dpr);
-  canvas.height       = Math.round(sh * dpr);
-  canvas.style.width  = sw + 'px';
-  canvas.style.height = sh + 'px';
-  canvas.hidden = false;
-  if (currentFingerprint) currentFingerprint.stop();
-  const doneCfg = Object.assign({}, _recorderFpCfg, { formingMs: 0, settlingMs: 0 });
-  currentFingerprint = new FingerprintRenderer(canvas, lastFingerprintParams, doneCfg);
-  currentFingerprint.start();
 }
 
 function clientHash(draftData) {
@@ -821,6 +811,7 @@ document.getElementById('beginButton').addEventListener('pointerdown', async (e)
 
 // Record → Splash (back)
 document.getElementById('backButton').addEventListener('click', () => {
+  releaseWakeLock();
   if (isRecording) abortRecording();
   // Dismiss circle
   circleAddClass('');
@@ -880,9 +871,8 @@ auraButton.addEventListener('contextmenu', e => e.preventDefault());
 
 // Done — restart
 document.getElementById('restartButton').addEventListener('click', () => {
-  if (currentFingerprint) { currentFingerprint.stop(); currentFingerprint = null; }
-  const doneCanvas = document.getElementById('doneCanvas');
-  if (doneCanvas) doneCanvas.hidden = true;
+  stopFingerprintOnCanvas();
+  releaseWakeLock();
   circleAddClass('');
   setCircle({ size: 0, opacity: 0, instant: true });
   circleBuilt = false;
@@ -896,8 +886,18 @@ document.getElementById('restartButton').addEventListener('click', () => {
 /* ── Boot ───────────────────────────────────────────────────────── */
 // Fetch fingerprint config non-blocking — available before any fingerprint appears
 (async () => {
-  try { const c = await fetch('/config').then(r => r.json()); _recorderFpCfg = buildFingerprintConfig(c); _recorderFpCfg.showSemanticLabels = false; } catch {}
+  try {
+    const c = await fetch('/config').then(r => r.json());
+    _recorderFpCfg = buildFingerprintConfig(c);
+  } catch {}
+  _recorderFpCfg.showSemanticLabels = false;
+  _recorderFpCfg.blendMode = 'screen';
 })();
+
+// Re-acquire wake lock if page becomes visible while still analyzing
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible' && currentScreen === 'analyzing') acquireWakeLock();
+});
 
 initShader();
 resizeShader();
